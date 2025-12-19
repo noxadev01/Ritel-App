@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposal Pengembangan Aplikasi Gudang Sayur & Buah</title>
+    <style>
+        /* General Setup & Print Styles */
+        @page {
+            margin: 1.5cm;
+            size: A4;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #fff;
+            margin: 0;
+            padding: 0;
+            font-size: 13px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #0a4d8c;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #0a4d8c;
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .header .subtitle {
+            color: #555;
+            margin-top: 5px;
+            font-size: 16px;
+        }
+
+        /* Section Title */
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #0a4d8c;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        /* Main Table Styling */
+        .proposal-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+
+        .proposal-table th,
+        .proposal-table td {
+            border: 1px solid #dee2e6;
+            padding: 12px 15px;
+            vertical-align: top;
+        }
+
+        .proposal-table th {
+            background-color: #eaf2f8;
+            font-weight: bold;
+            color: #0a4d8c;
+            text-align: left;
+        }
+
+        .proposal-table .feature-number {
+            width: 5%;
+            text-align: center;
+            font-weight: bold;
+            color: #0a4d8c;
+            background-color: #f8f9fa;
+        }
+
+        .proposal-table .feature-title {
+            width: 30%;
+            font-weight: bold;
+            color: #0a4d8c;
+            background-color: #f8f9fa;
+        }
+
+        .proposal-table .feature-details {
+            width: 65%;
+        }
+
+        .proposal-table .feature-details ul {
+            padding-left: 20px;
+            margin: 0;
+        }
+
+        .proposal-table .feature-details li {
+            margin-bottom: 5px;
+        }
+
+        .proposal-table .feature-details li:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Total Price Table */
+        .total-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .total-table th,
+        .total-table td {
+            border: 1px solid #dee2e6;
+            padding: 12px 15px;
+            text-align: left;
+        }
+
+        .total-table th {
+            background-color: #eaf2f8;
+            color: #0a4d8c;
+        }
+
+        .total-table .total-row td {
+            font-weight: bold;
+            font-size: 16px;
+            background-color: #0a4d8c;
+            color: #fff;
+            text-align: right;
+        }
+
+        .total-table .total-row td:first-child {
+            text-align: left;
+        }
+
+        /* Notes Styling */
+        .notes {
+            margin-top: 15px;
+            font-size: 12px;
+            font-style: italic;
+            color: #666;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Proposal Pengembangan Aplikasi</h1>
+            <div class="subtitle">Sistem Manajemen Gudang Sayur & Buah Terpadu</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="section">
+            <div class="section-title">Fitur Utama</div>
+            <p>Berikut adalah rincian fitur-fitur utama yang akan dikembangkan dalam aplikasi untuk mengoptimalkan
+                manajemen gudang sayur dan buah Anda.</p>
+        </div>
+
+        <table class="proposal-table">
+            <thead>
+                <tr>
+                    <th>No.</th>
+                    <th>Modul Fitur</th>
+                    <th>Rincian Fitur</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 1. Manajemen Produk -->
+                <tr>
+                    <td class="feature-number">1</td>
+                    <td class="feature-title">Manajemen Produk</td>
+                    <td class="feature-details">
+                        <ul>
+                            <li>Tambah / edit / hapus produk (sayur & buah).</li>
+                            <li>Detail produk: nama, kategori, satuan, foto, harga modal, <em>shelf-life</em>.</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- 2. Pre-Order -->
+                <tr>
+                    <td class="feature-number">2</td>
+                    <td class="feature-title">Pre-Order</td>
+                    <td class="feature-details">
+                        <ul>
+                            <li>Buka/tutup periode pre-order untuk produk tertentu.</li>
+                            <li>Atur batas waktu pemesanan dan estimasi tanggal kedatangan.</li>
+                            <li>Monitoring total jumlah pre-order per produk.</li>
+                            <li>Integrasi dengan stok masuk saat barang pre-order tiba.</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- 3. Stok Gudang -->
+                <tr>
+                    <td class="feature-number">3</td>
+                    <td class="feature-title">Stok Gudang</td>
+                    <td class="feature-details">
+                        <ul>
+                            <li>Catat stok masuk & keluar.</li>
+                            <li>Sisa stok real-time.</li>
+                            <li>Batch / lot management.</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- 4. Barang Masuk (Inbound) -->
+                <tr>
+                    <td class="feature-number">4</td>
+                    <td class="feature-title">Barang Masuk (Inbound)</td>
+                    <td class="feature-details">
+                        <ul>
+                            <li>Input barang dari supplier.</li>
+                            <li>Batch ID otomatis untuk setiap kiriman.</li>
+                            <li>Catatan kualitas (grade, kondisi).</li>
+                            <li>Tanggal masuk & kadaluarsa.</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- 5. Barang Keluar / Penjualan (Outbound) -->
+                <tr>
+                    <td class="feature-number">5</td>
+                    <td class="feature-title">Barang Keluar / Penjualan (Outbound)</td>
+                    <td class="feature-details">
+                        <ul>
+                            <li>Pilih batch untuk pengiriman.</li>
+                            <li>Update stok otomatis.</li>
+                            <li>Lacak barang ke customer.</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- 6. Batch / Lot Tracking -->
+                <tr>
+                    <td class="feature-number">6</td>
+                    <td class="feature-title">Batch / Lot Tracking</td>
+                    <td class="feature-details">
+                        <ul>
+                            <li><em>Traceability</em> per batch: Supplier → Customer.</li>
+                            <li>Lacak sisa stok batch.</li>
+                            <li>Riwayat keluar per batch.</li>
+                            <li>Forward & backward trace.</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- 7. Invoice -->
+                <tr>
+                    <td class="feature-number">7</td>
+                    <td class="feature-title">Invoice</td>
+                    <td class="feature-details">
+                        <ul>
+                            <li>Auto-generate nomor invoice.</li>
+                            <li>Pilih customer, tambah produk & batch.</li>
+                            <li>Isi quantity, harga, diskon, pajak.</li>
+                            <li>Update stok otomatis.</li>
+                            <li>Cetak/download invoice (PDF).</li>
+                            <li>Status invoice & riwayat.</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- 8. Quality Control / Monitoring Kualitas -->
+                <tr>
+                    <td class="feature-number">8</td>
+                    <td class="feature-title">Quality Control / Monitoring Kualitas</td>
+                    <td class="feature-details">
+                        <ul>
+                            <li>Checklist QC saat barang masuk & keluar.</li>
+                            <li>Catat kualitas: warna, tekstur, kesegaran.</li>
+                            <li>Notifikasi barang rusak / reject.</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- 9. Kadaluarsa & Notifikasi -->
+                <tr>
+                    <td class="feature-number">9</td>
+                    <td class="feature-title">Kadaluarsa & Notifikasi</td>
+                    <td class="feature-details">
+                        <ul>
+                            <li>Reminder barang mendekati kadaluarsa.</li>
+                            <li>Notifikasi stok hampir habis.</li>
+                            <li>Laporan barang rusak / kadaluarsa.</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- 10. Laporan & Analisis -->
+                <tr>
+                    <td class="feature-number">10</td>
+                    <td class="feature-title">Laporan & Analisis</td>
+                    <td class="feature-details">
+                        <ul>
+                            <li>Laporan stok, barang masuk & keluar.</li>
+                            <li>Laporan Laba/Rugi (profit margin).</li>
+                            <li>Laporan Kas (masuk / keluar uang).</li>
+                            <li>Grafik produk terlaris & paling cepat kadaluarsa.</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- 11. Manajemen Customer & Supplier -->
+                <tr>
+                    <td class="feature-number">11</td>
+                    <td class="feature-title">Manajemen Customer & Supplier</td>
+                    <td class="feature-details">
+                        <ul>
+                            <li>Data customer & supplier.</li>
+                            <li>Kontak, alamat, info transaksi.</li>
+                            <li>Riwayat pembelian & pengiriman.</li>
+                        </ul>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Total Price -->
+        <table class="total-table">
+            <tbody>
+                <tr>
+                    <td colspan="2"><strong>Total Estimasi Biaya Pengembangan</strong></td>
+                </tr>
+                <tr class="total-row">
+                    <td>Total</td>
+                    <td>Rp 5.500.000</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Notes Section -->
+        <p class="notes">Biaya di atas masih belum termasuk dengan biaya hosting, domain, dan perawatan tahunan.</p>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Proposal Pengembangan Aplikasi Gudang Sayur & Buah</p>
+        </div>
+    </div>
+
+</body>
+
+</html>

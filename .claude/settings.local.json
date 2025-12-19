@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(go run:*)",
+      "Bash(go build:*)",
+      "Bash(chmod:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(ls:*)",
+      "Bash(pg_isready:*)",
+      "Bash(wails dev)",
+      "Bash(PGPASSWORD=postgres psql:*)",
+      "Bash(cut:*)",
+      "Bash(cat:*)",
+      "Bash(wc:*)",
+      "Bash(dir /b)",
+      "Bash(go get:*)",
+      "Bash(if [ -f .env ])",
+      "Bash(then echo \"File .env exists\")",
+      "Bash(else echo \"File .env does not exist\")",
+      "Bash(fi)",
+      "Bash(npm install:*)",
+      "Bash(node update-components.js:*)",
+      "Bash(npm run dev:*)",
+      "Bash(pkill:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm run build:*)",
+      "Bash(wails generate:*)",
+      "Bash(then cat .env)",
+      "Bash(else echo \"No .env file found\")",
+      "Bash(sqlite3:*)"
+    ]
+  }
+}
