@@ -2,6 +2,7 @@ package http
 
 import (
 	"ritel-app/internal/auth"
+	"ritel-app/internal/config"
 	"ritel-app/internal/container"
 	"ritel-app/internal/http/handlers"
 	"ritel-app/internal/http/middleware"
@@ -10,7 +11,7 @@ import (
 )
 
 // SetupRouter configures all routes for the HTTP server
-func SetupRouter(services *container.ServiceContainer, jwtManager *auth.JWTManager, corsOrigins []string, corsCredentials bool) *gin.Engine {
+func SetupRouter(services *container.ServiceContainer, jwtManager *auth.JWTManager, cfg config.ServerConfig) *gin.Engine {
 	// Set Gin to release mode
 	gin.SetMode(gin.ReleaseMode)
 
@@ -19,7 +20,17 @@ func SetupRouter(services *container.ServiceContainer, jwtManager *auth.JWTManag
 	// Global middleware
 	router.Use(middleware.Recovery())
 	router.Use(middleware.Logger())
-	router.Use(middleware.CORS(corsOrigins, corsCredentials))
+	router.Use(middleware.CORS(cfg.CORSOrigins, cfg.CORSCredentials))
+
+	// Initialize rate limiters if enabled
+	if cfg.RateLimitEnabled {
+		middleware.InitRateLimiters(
+			cfg.RateLimitGlobal, cfg.RateLimitLogin, cfg.RateLimitAPI,
+			cfg.RateLimitWindowGlobal, cfg.RateLimitWindowLogin, cfg.RateLimitWindowAPI,
+		)
+		// Apply smart rate limiting globally
+		router.Use(middleware.SmartRateLimit())
+	}
 
 	// Initialize all handlers
 	authHandler := handlers.NewAuthHandler(services, jwtManager)
@@ -38,6 +49,7 @@ func SetupRouter(services *container.ServiceContainer, jwtManager *auth.JWTManag
 	printerHandler := handlers.NewPrinterHandler(services)
 	hardwareHandler := handlers.NewHardwareHandler(services)
 	settingsHandler := handlers.NewSettingsHandler(services)
+	syncHandler := handlers.NewSyncHandler()
 
 	// Health check endpoint (no auth required)
 	router.GET("/health", func(c *gin.Context) {
@@ -184,16 +196,20 @@ func SetupRouter(services *container.ServiceContainer, jwtManager *auth.JWTManag
 			// ==================== STAFF REPORTS ====================
 			staffReport := protected.Group("/staff-report")
 			{
-				staffReport.GET("/:id", staffReportHandler.GetStaffReport)
-				staffReport.GET("/:id/detail", staffReportHandler.GetStaffReportDetail)
+				// Static routes first (before dynamic :id routes)
 				staffReport.GET("/all", staffReportHandler.GetAllStaffReports)
 				staffReport.GET("/trend/all", staffReportHandler.GetAllWithTrend)
-				staffReport.GET("/:id/trend", staffReportHandler.GetWithTrend)
-				staffReport.GET("/:id/historical", staffReportHandler.GetHistoricalData)
 				staffReport.GET("/comprehensive", staffReportHandler.GetComprehensive)
 				staffReport.GET("/shift-productivity", staffReportHandler.GetShiftProductivity)
-				staffReport.GET("/:id/shift-data", staffReportHandler.GetStaffShiftData)
 				staffReport.GET("/monthly-trend", staffReportHandler.GetMonthlyTrend)
+
+				// Dynamic :id routes
+				staffReport.GET("/:id", staffReportHandler.GetStaffReport)
+				staffReport.GET("/:id/detail", staffReportHandler.GetStaffReportDetail)
+				staffReport.GET("/:id/trend", staffReportHandler.GetWithTrend)
+				staffReport.GET("/:id/historical", staffReportHandler.GetHistoricalData)
+				staffReport.GET("/:id/shift-data", staffReportHandler.GetStaffShiftData)
+				staffReport.GET("/:id/monthly-trend", staffReportHandler.GetWithMonthlyTrend)
 			}
 
 			// ==================== SALES REPORTS ====================
@@ -226,6 +242,16 @@ func SetupRouter(services *container.ServiceContainer, jwtManager *auth.JWTManag
 			{
 				settings.GET("/poin", settingsHandler.GetPoinSettings)
 				settings.PUT("/poin", settingsHandler.UpdatePoinSettings)
+			}
+
+			// ==================== SYNC (Offline-First Mode) ====================
+			// These endpoints are available when SYNC_MODE=enabled in .env
+			sync := protected.Group("/sync")
+			{
+				sync.GET("/status", syncHandler.GetSyncStatus)
+				sync.POST("/force", syncHandler.ForceSyncNow)
+				sync.GET("/pending", syncHandler.GetPendingSyncs)
+				sync.POST("/clear", syncHandler.ClearSyncedQueue)
 			}
 
 			// ==================== ADMIN-ONLY ROUTES ====================

@@ -253,6 +253,7 @@ func (s *ReturnService) CreateReturn(req *models.CreateReturnRequest) error {
 }
 
 // CalculateRefundAmount calculates the refund amount for returned products
+// UPDATED: Menggunakan harga_beli (modal/HPP) bukan harga_jual
 func (s *ReturnService) CalculateRefundAmount(transaksi *models.TransaksiDetail, returnProducts []models.ReturnProductRequest) (int, error) {
 	if transaksi == nil || len(returnProducts) == 0 {
 		return 0, fmt.Errorf("invalid transaction or products")
@@ -260,24 +261,36 @@ func (s *ReturnService) CalculateRefundAmount(transaksi *models.TransaksiDetail,
 
 	refundAmount := 0
 
-	// Calculate subtotal of returned items
+	// Calculate refund based on cost price (harga_beli) instead of selling price
 	for _, returnProduct := range returnProducts {
 		for _, item := range transaksi.Items {
 			if item.ProdukID != nil && *item.ProdukID == returnProduct.ProductID {
-				// Calculate proportional refund
-				itemRefund := item.HargaSatuan * returnProduct.Quantity
-				refundAmount += itemRefund
+				// Get product to retrieve harga_beli (cost price)
+				produk, err := s.produkService.produkRepo.GetByID(*item.ProdukID)
+				if err != nil || produk == nil {
+					// Fallback to selling price if product not found
+					itemRefund := item.HargaSatuan * returnProduct.Quantity
+					refundAmount += itemRefund
+				} else {
+					// Use harga_beli (cost price) for refund calculation
+					// This ensures refund is based on modal, not profit margin
+					if item.BeratGram > 0 {
+						// Barang curah: refund = (berat_gram / 1000) * harga_beli_per_kg
+						itemRefund := int((item.BeratGram / 1000.0) * float64(produk.HargaBeli))
+						refundAmount += itemRefund
+					} else {
+						// Barang satuan: refund = jumlah * harga_beli
+						itemRefund := returnProduct.Quantity * produk.HargaBeli
+						refundAmount += itemRefund
+					}
+				}
 				break
 			}
 		}
 	}
 
-	// Apply proportional discount if transaction had discount
-	if transaksi.Transaksi.Diskon > 0 && transaksi.Transaksi.Subtotal > 0 {
-		discountRatio := float64(transaksi.Transaksi.Diskon) / float64(transaksi.Transaksi.Subtotal)
-		discountAmount := int(float64(refundAmount) * discountRatio)
-		refundAmount -= discountAmount
-	}
+	// Do NOT apply discounts for refund - refund is based on cost price
+	// Customer gets back the modal/cost, not the discounted selling price
 
 	// Ensure refund amount is not negative
 	if refundAmount < 0 {

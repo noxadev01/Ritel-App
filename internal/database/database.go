@@ -18,6 +18,7 @@ import (
 
 var DB *sql.DB
 var CurrentDialect dialect.Dialect
+var CurrentDriver string // Store the current database driver name ("postgres" or "sqlite3")
 
 // Dual database mode variables
 var UseDualMode bool
@@ -25,6 +26,17 @@ var DBPostgres *sql.DB
 var DBSQLite *sql.DB
 var PostgresDialect dialect.Dialect
 var SQLiteDialect dialect.Dialect
+
+// IsPostgreSQL returns true if the current database is PostgreSQL
+// This is a more reliable check than CurrentDialect which might be nil
+func IsPostgreSQL() bool {
+	return CurrentDriver == "postgres"
+}
+
+// IsSQLite returns true if the current database is SQLite
+func IsSQLite() bool {
+	return CurrentDriver == "sqlite3"
+}
 
 // Database paths and directories
 const (
@@ -53,7 +65,8 @@ func InitDB() error {
 	}
 	fmt.Println("========================================")
 
-	// Initialize the appropriate dialect
+	// Initialize the appropriate dialect and store driver name
+	CurrentDriver = dbConfig.Driver // Store for reliable detection
 	switch dbConfig.Driver {
 	case "postgres":
 		fmt.Print("📊 Menghubungkan ke PostgreSQL... ")
@@ -177,6 +190,7 @@ func initDualDatabase(dualConfig config.DualDatabaseConfig) error {
 	// Set DB to PostgreSQL as primary for read operations
 	DB = DBPostgres
 	CurrentDialect = PostgresDialect
+	CurrentDriver = "postgres" // Set for reliable database detection
 
 	fmt.Println("----------------------------------------")
 	fmt.Println("📍 PostgreSQL: Primary (Read/Write)")
@@ -627,7 +641,14 @@ func createFileBackup(dbPath string) error {
 
 // FixTransaksiItemSchema safely migrates the transaksi_item table to allow produk_id to be NULL.
 // This uses a CREATE-COPY-DROP-RENAME strategy within a transaction to prevent data loss.
+// NOTE: This migration is SQLite-specific. PostgreSQL schema is already correct from table creation.
 func FixTransaksiItemSchema() error {
+	// Skip this migration for PostgreSQL - the schema is already correct from table creation
+	if IsPostgreSQL() {
+		log.Println("[SCHEMA FIX] Skipping SQLite-specific migration for PostgreSQL")
+		return nil
+	}
+
 	migrationName := "make_transaksi_item_produk_id_nullable"
 	applied, err := isMigrationApplied(migrationName)
 	if err != nil {
@@ -1208,6 +1229,10 @@ func getIndexCreationQueries() []string {
 		`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`,
 		`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`,
 		`CREATE INDEX IF NOT EXISTS idx_users_status ON users(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_pelanggan_deleted_at ON pelanggan(deleted_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_produk_deleted_at ON produk(deleted_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_promo_deleted_at ON promo(deleted_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_kategori_deleted_at ON kategori(deleted_at)`,
 	}
 }
 
@@ -1553,11 +1578,62 @@ func getMigrationList() []struct {
 			name:  "add_print_settings_left_margin_column",
 			query: `ALTER TABLE print_settings ADD COLUMN left_margin INTEGER DEFAULT 0`,
 		},
+		{
+			name:  "add_pelanggan_deleted_at_column",
+			query: `ALTER TABLE pelanggan ADD COLUMN deleted_at DATETIME`,
+		},
+		{
+			name:  "add_produk_deleted_at_column",
+			query: `ALTER TABLE produk ADD COLUMN deleted_at DATETIME`,
+		},
+		{
+			name:  "add_promo_deleted_at_column",
+			query: `ALTER TABLE promo ADD COLUMN deleted_at DATETIME`,
+		},
+		{
+			name:  "add_kategori_deleted_at_column",
+			query: `ALTER TABLE kategori ADD COLUMN deleted_at DATETIME`,
+		},
+		// PostgreSQL-specific migrations for decimal stock support
+		{
+			name:  "pg_convert_produk_stok_to_decimal",
+			query: `ALTER TABLE produk ALTER COLUMN stok TYPE REAL`,
+		},
+		{
+			name:  "pg_convert_batch_qty_to_decimal",
+			query: `ALTER TABLE batch ALTER COLUMN qty TYPE REAL`,
+		},
+		{
+			name:  "pg_convert_batch_qty_tersisa_to_decimal",
+			query: `ALTER TABLE batch ALTER COLUMN qty_tersisa TYPE REAL`,
+		},
+		{
+			name:  "pg_convert_stok_history_stok_sebelum_to_decimal",
+			query: `ALTER TABLE stok_history ALTER COLUMN stok_sebelum TYPE REAL`,
+		},
+		{
+			name:  "pg_convert_stok_history_stok_sesudah_to_decimal",
+			query: `ALTER TABLE stok_history ALTER COLUMN stok_sesudah TYPE REAL`,
+		},
+		{
+			name:  "pg_convert_stok_history_perubahan_to_decimal",
+			query: `ALTER TABLE stok_history ALTER COLUMN perubahan TYPE REAL`,
+		},
 	}
 }
 
 // runMigration executes a single migration with proper error handling.
 func runMigration(name, query string) error {
+	// Skip PostgreSQL-specific migrations on SQLite
+	if strings.HasPrefix(name, "pg_") && !IsPostgreSQL() {
+		return nil
+	}
+
+	// Skip SQLite-specific migrations (using PRAGMA) on PostgreSQL
+	if strings.Contains(query, "PRAGMA") && IsPostgreSQL() {
+		return nil
+	}
+
 	// Check if migration has already been applied
 	var count int
 	checkQuery := TranslateQuery("SELECT COUNT(*) FROM migrations WHERE name = ?")
@@ -1591,7 +1667,8 @@ func runMigration(name, query string) error {
 // isMigrationApplied checks if a migration has been applied.
 func isMigrationApplied(name string) (bool, error) {
 	var count int
-	err := DB.QueryRow("SELECT COUNT(*) FROM migrations WHERE name = ?", name).Scan(&count)
+	// Use QueryRow wrapper for proper placeholder translation (? -> $1 for PostgreSQL)
+	err := QueryRow("SELECT COUNT(*) FROM migrations WHERE name = ?", name).Scan(&count)
 	if err != nil {
 		return false, err
 	}

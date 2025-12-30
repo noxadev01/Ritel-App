@@ -5,10 +5,36 @@
 
 /**
  * Check if the app is running in desktop mode (Wails)
+ * This includes both production Wails app and development mode via wails dev
  * @returns {boolean} True if running in Wails desktop app
  */
 export const isDesktopMode = () => {
-  return typeof window !== 'undefined' && window.wails !== undefined;
+  // Check for Wails runtime
+  if (typeof window !== 'undefined' && window.wails !== undefined) {
+    return true;
+  }
+
+  // In Wails dev mode, window.wails might not be immediately available
+  // Check if we're running on the Wails dev server (localhost:34115 is the default Wails dev port)
+  // or if go/wailsjs bindings are available
+  if (typeof window !== 'undefined') {
+    // Check if running via Wails dev (check for wailsjs in window or runtime)
+    if (window.runtime !== undefined || window.go !== undefined) {
+      return true;
+    }
+
+    // Force desktop mode if VITE_MODE is explicitly set to 'desktop'
+    if (import.meta.env.VITE_MODE === 'desktop') {
+      return true;
+    }
+
+    // Force web mode if VITE_MODE is explicitly set to 'web'
+    if (import.meta.env.VITE_MODE === 'web') {
+      return false;
+    }
+  }
+
+  return false;
 };
 
 /**

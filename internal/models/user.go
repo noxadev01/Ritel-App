@@ -62,6 +62,8 @@ type StaffReport struct {
 	TotalPenjualan    int       `json:"totalPenjualan"`    // Total rupiah
 	TotalProfit       int       `json:"totalProfit"`       // Total profit (penjualan - HPP)
 	TotalItemTerjual  int       `json:"totalItemTerjual"`  // Total qty produk
+	TotalRefund       int       `json:"totalRefund"`       // Total refund/retur (menggunakan harga beli)
+	TotalReturnCount  int       `json:"totalReturnCount"`  // Total jumlah transaksi retur
 	PeriodeMulai      time.Time `json:"periodeMulai"`
 	PeriodeSelesai    time.Time `json:"periodeSelesai"`
 }

@@ -732,16 +732,11 @@ func (s *PromoService) CalculateTotalDiscount(subtotal int, totalQuantity int, p
 		}
 	}
 
-	// Apply customer discount if registered
-	// if pelangganID > 0 {
-	// 	pelanggan, err := s.pelangganRepo.GetByID(pelangganID)
-	// 	if err == nil && pelanggan != nil && pelanggan.DiskonPersen > 0 {
-	// 		subtotalAfterPromo := subtotal - promoDiskon
-	// 		customerDiskon = (subtotalAfterPromo * pelanggan.DiskonPersen) / 100
-	// 	}
-	// }
+	// Tidak ada diskon berdasarkan level pelanggan
+	// Diskon hanya dari promo dan poin
+	_ = customerDiskon // unused, keep for future if needed
 
-	totalDiskon := promoDiskon + customerDiskon
+	totalDiskon := promoDiskon
 	return totalDiskon, promoDiskon, nil
 }
 

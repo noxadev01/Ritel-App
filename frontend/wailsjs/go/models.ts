@@ -740,6 +740,8 @@ export namespace models {
 	    totalPenjualan: number;
 	    totalProfit: number;
 	    totalItemTerjual: number;
+	    totalRefund: number;
+	    totalReturnCount: number;
 	    // Go type: time
 	    periodeMulai: any;
 	    // Go type: time
@@ -757,6 +759,8 @@ export namespace models {
 	        this.totalPenjualan = source["totalPenjualan"];
 	        this.totalProfit = source["totalProfit"];
 	        this.totalItemTerjual = source["totalItemTerjual"];
+	        this.totalRefund = source["totalRefund"];
+	        this.totalReturnCount = source["totalReturnCount"];
 	        this.periodeMulai = this.convertValues(source["periodeMulai"], null);
 	        this.periodeSelesai = this.convertValues(source["periodeSelesai"], null);
 	    }

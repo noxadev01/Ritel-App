@@ -9,9 +9,10 @@ type Pelanggan struct {
 	Telepon        string    `json:"telepon"`
 	Email          string    `json:"email"`
 	Alamat         string    `json:"alamat"`
-	Level          int       `json:"level"` // Hanya untuk klasifikasi, TIDAK untuk diskon
-	Tipe           string    `json:"tipe"`  // Hanya untuk klasifikasi, TIDAK untuk diskon
-	Poin           int       `json:"poin"`
+	Level          int       `json:"level"`       // Level pelanggan: 1=reguler, 2=premium, 3=gold
+	Tipe           string    `json:"tipe"`        // Tipe pelanggan berdasarkan level
+	Poin           int       `json:"poin"`        // Jumlah poin pelanggan
+	DiskonPersen   int       `json:"diskonPersen"` // Persentase diskon berdasarkan level
 	TotalTransaksi int       `json:"totalTransaksi"`
 	TotalBelanja   int       `json:"totalBelanja"`
 	CreatedAt      time.Time `json:"createdAt"`

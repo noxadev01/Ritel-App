@@ -16,6 +16,15 @@ type ServerConfig struct {
 	JWTExpiry       time.Duration
 	CORSOrigins     []string
 	CORSCredentials bool
+
+	// Rate Limiting Configuration
+	RateLimitEnabled      bool
+	RateLimitGlobal       int           // Global rate limit (requests per window)
+	RateLimitAPI          int           // API rate limit (requests per window)
+	RateLimitLogin        int           // Login rate limit (requests per window)
+	RateLimitWindowGlobal time.Duration // Global window duration
+	RateLimitWindowAPI    time.Duration // API window duration
+	RateLimitWindowLogin  time.Duration // Login window duration
 }
 
 // GetServerConfig loads server configuration from environment variables
@@ -70,6 +79,33 @@ func GetServerConfig() ServerConfig {
 	// CORS allow credentials
 	credentials, _ := strconv.ParseBool(os.Getenv("CORS_ALLOW_CREDENTIALS"))
 
+	// Rate Limiting Configuration
+	rateLimitEnabled, _ := strconv.ParseBool(os.Getenv("RATE_LIMIT_ENABLED"))
+	if os.Getenv("RATE_LIMIT_ENABLED") == "" {
+		rateLimitEnabled = true // Default to enabled for security
+	}
+
+	// Rate limit values
+	rateLimitGlobal, _ := strconv.Atoi(os.Getenv("RATE_LIMIT_GLOBAL"))
+	if rateLimitGlobal == 0 {
+		rateLimitGlobal = 200 // Default: 200 requests per minute
+	}
+
+	rateLimitAPI, _ := strconv.Atoi(os.Getenv("RATE_LIMIT_API"))
+	if rateLimitAPI == 0 {
+		rateLimitAPI = 100 // Default: 100 requests per minute
+	}
+
+	rateLimitLogin, _ := strconv.Atoi(os.Getenv("RATE_LIMIT_LOGIN"))
+	if rateLimitLogin == 0 {
+		rateLimitLogin = 5 // Default: 5 requests per minute (strict for login)
+	}
+
+	// Rate limit windows
+	rateLimitWindowGlobal := parseDuration(os.Getenv("RATE_LIMIT_WINDOW_GLOBAL"), time.Minute)
+	rateLimitWindowAPI := parseDuration(os.Getenv("RATE_LIMIT_WINDOW_API"), time.Minute)
+	rateLimitWindowLogin := parseDuration(os.Getenv("RATE_LIMIT_WINDOW_LOGIN"), time.Minute)
+
 	return ServerConfig{
 		Enabled:         enabled,
 		Port:            port,
@@ -78,5 +114,26 @@ func GetServerConfig() ServerConfig {
 		JWTExpiry:       time.Duration(expiryHours) * time.Hour,
 		CORSOrigins:     origins,
 		CORSCredentials: credentials,
+
+		// Rate Limiting
+		RateLimitEnabled:      rateLimitEnabled,
+		RateLimitGlobal:       rateLimitGlobal,
+		RateLimitAPI:          rateLimitAPI,
+		RateLimitLogin:        rateLimitLogin,
+		RateLimitWindowGlobal: rateLimitWindowGlobal,
+		RateLimitWindowAPI:    rateLimitWindowAPI,
+		RateLimitWindowLogin:  rateLimitWindowLogin,
 	}
+}
+
+// parseDuration parses a duration string or returns default
+func parseDuration(s string, defaultDuration time.Duration) time.Duration {
+	if s == "" {
+		return defaultDuration
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return defaultDuration
+	}
+	return d
 }

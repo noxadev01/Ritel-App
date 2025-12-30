@@ -118,9 +118,11 @@ func (s *TransaksiService) CreateTransaksi(req *models.CreateTransaksiRequest) (
 	}
 
 	// 4. HITUNG TOTAL DISKON (PROMO + POIN)
-	// Frontend already calculated total discount including promo
+	// Diskon hanya dari promo dan poin, tidak ada diskon berdasarkan level pelanggan
 	totalDiskon := req.Diskon
-	fmt.Printf("[TRANSACTION SERVICE] Total discount: %d (promo + points from frontend)\n", totalDiskon)
+	diskonPelanggan := 0 // Tidak ada diskon level, hanya dari poin
+
+	fmt.Printf("[TRANSACTION SERVICE] Total discount: %d (promo + points)\n", totalDiskon)
 
 	// 5. HITUNG TOTAL AKHIR & VALIDASI
 	totalAkhir := subtotal - totalDiskon
@@ -152,17 +154,19 @@ func (s *TransaksiService) CreateTransaksi(req *models.CreateTransaksiRequest) (
 
 	// 6. CREATE TRANSACTION DI DATABASE
 	repoRequest := &models.CreateTransaksiRequest{
-		PelangganID:   req.PelangganID,
-		PelangganNama: req.PelangganNama,
-		PelangganTelp: req.PelangganTelp,
-		Items:         req.Items,
-		Pembayaran:    req.Pembayaran,
-		PoinDitukar:   poinDipakai, // Gunakan poin yang sudah disesuaikan
-		Diskon:        totalDiskon,
-		Catatan:       req.Catatan,
-		Kasir:         req.Kasir,
-		StaffID:       req.StaffID,   // PERBAIKAN: Teruskan StaffID
-		StaffNama:     req.StaffNama, // PERBAIKAN: Teruskan StaffNama
+		PelangganID:     req.PelangganID,
+		PelangganNama:   req.PelangganNama,
+		PelangganTelp:   req.PelangganTelp,
+		Items:           req.Items,
+		Pembayaran:      req.Pembayaran,
+		PoinDitukar:     poinDipakai, // Gunakan poin yang sudah disesuaikan
+		Diskon:          totalDiskon,
+		DiskonPromo:     req.Diskon,       // Diskon promo dari frontend
+		DiskonPelanggan: diskonPelanggan,  // Diskon level pelanggan dari backend
+		Catatan:         req.Catatan,
+		Kasir:           req.Kasir,
+		StaffID:         req.StaffID,
+		StaffNama:       req.StaffNama,
 	}
 
 	fmt.Printf("[TRANSACTION SERVICE] Creating transaction with StaffID: %d, StaffNama: %s\n", req.StaffID, req.StaffNama)

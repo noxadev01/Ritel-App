@@ -21,7 +21,7 @@ func (r *PrinterRepository) GetPrintSettings() (*models.PrintSettings, error) {
 	          show_logo, auto_print, copies_count, created_at, updated_at
 	          FROM print_settings WHERE id = 1 LIMIT 1`
 
-	err := database.DB.QueryRow(query).Scan(
+	err := database.QueryRow(query).Scan(
 		&settings.ID, &settings.PrinterName, &settings.PaperSize, &settings.PaperWidth, &settings.FontSize,
 		&settings.LineSpacing, &settings.LeftMargin, &settings.DashLineChar, &settings.DoubleLineChar,
 		&settings.HeaderAlignment, &settings.TitleAlignment, &settings.FooterAlignment,
@@ -58,7 +58,7 @@ func (r *PrinterRepository) SavePrintSettings(settings *models.PrintSettings) er
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 
-		_, err := database.DB.Exec(query,
+		_, err := database.Exec(query,
 			settings.ID, settings.PrinterName, settings.PaperSize, settings.PaperWidth, settings.FontSize,
 			settings.LineSpacing, settings.LeftMargin, settings.DashLineChar, settings.DoubleLineChar,
 			settings.HeaderAlignment, settings.TitleAlignment, settings.FooterAlignment,
@@ -78,7 +78,7 @@ func (r *PrinterRepository) SavePrintSettings(settings *models.PrintSettings) er
 		WHERE id = 1
 	`
 
-	_, err := database.DB.Exec(query,
+	_, err := database.Exec(query,
 		settings.PrinterName, settings.PaperSize, settings.PaperWidth, settings.FontSize, settings.LineSpacing,
 		settings.LeftMargin, settings.DashLineChar, settings.DoubleLineChar, settings.HeaderAlignment,
 		settings.TitleAlignment, settings.FooterAlignment, settings.HeaderText,
@@ -135,6 +135,6 @@ func (r *PrinterRepository) InitPrintSettingsTable() error {
 		)
 	`
 
-	_, err := database.DB.Exec(query)
+	_, err := database.Exec(query)
 	return err
 }

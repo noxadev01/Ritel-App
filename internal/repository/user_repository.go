@@ -33,11 +33,12 @@ func (r *UserRepository) Create(user *models.User) error {
 
 	query := `
 		INSERT INTO users (username, password, nama_lengkap, role, status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id
 	`
 
 	now := time.Now()
-	result, err := r.db.Exec(
+	var id int64
+	err = database.QueryRow(
 		query,
 		user.Username,
 		string(hashedPassword),
@@ -46,15 +47,10 @@ func (r *UserRepository) Create(user *models.User) error {
 		user.Status,
 		now,
 		now,
-	)
+	).Scan(&id)
 
 	if err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get user ID: %w", err)
 	}
 
 	user.ID = int(id)
@@ -73,7 +69,7 @@ func (r *UserRepository) GetByID(id int) (*models.User, error) {
 	`
 
 	user := &models.User{}
-	err := r.db.QueryRow(query, id).Scan(
+	err := database.QueryRow(query, id).Scan(
 		&user.ID,
 		&user.Username,
 		&user.Password,
@@ -105,7 +101,7 @@ func (r *UserRepository) GetByUsername(username string) (*models.User, error) {
 	`
 
 	user := &models.User{}
-	err := r.db.QueryRow(query, username).Scan(
+	err := database.QueryRow(query, username).Scan(
 		&user.ID,
 		&user.Username,
 		&user.Password,
@@ -137,7 +133,7 @@ func (r *UserRepository) GetAll() ([]*models.User, error) {
 		ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.Query(query)
+	rows, err := database.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
 	}
@@ -175,7 +171,7 @@ func (r *UserRepository) GetAllStaff() ([]*models.User, error) {
 		ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.Query(query)
+	rows, err := database.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query staff: %w", err)
 	}
@@ -204,6 +200,45 @@ func (r *UserRepository) GetAllStaff() ([]*models.User, error) {
 	return users, nil
 }
 
+// GetAllTransactionStaff retrieves all users who can process transactions (both admin and staff)
+// This is used for staff reports to include all users who handle sales/returns
+func (r *UserRepository) GetAllTransactionStaff() ([]*models.User, error) {
+	query := `
+		SELECT id, username, password, nama_lengkap, role, status, created_at, updated_at, deleted_at
+		FROM users
+		WHERE (role = 'staff' OR role = 'admin') AND deleted_at IS NULL AND status = 'active'
+		ORDER BY created_at DESC
+	`
+
+	rows, err := database.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query transaction staff: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*models.User
+	for rows.Next() {
+		user := &models.User{}
+		err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.Password,
+			&user.NamaLengkap,
+			&user.Role,
+			&user.Status,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+			&user.DeletedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan transaction staff: %w", err)
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
 // Update updates a user
 func (r *UserRepository) Update(user *models.User) error {
 	query := `
@@ -212,7 +247,7 @@ func (r *UserRepository) Update(user *models.User) error {
 		WHERE id = ? AND deleted_at IS NULL
 	`
 
-	result, err := r.db.Exec(
+	result, err := database.Exec(
 		query,
 		user.Username,
 		user.NamaLengkap,
@@ -252,7 +287,7 @@ func (r *UserRepository) UpdatePassword(userID int, newPassword string) error {
 		WHERE id = ? AND deleted_at IS NULL
 	`
 
-	result, err := r.db.Exec(query, string(hashedPassword), time.Now(), userID)
+	result, err := database.Exec(query, string(hashedPassword), time.Now(), userID)
 	if err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}
@@ -278,7 +313,7 @@ func (r *UserRepository) Delete(id int) error {
 	`
 
 	now := time.Now()
-	result, err := r.db.Exec(query, now, now, id)
+	result, err := database.Exec(query, now, now, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
@@ -305,7 +340,7 @@ func (r *UserRepository) CountAdmins() (int, error) {
 	query := `SELECT COUNT(*) FROM users WHERE role = 'admin' AND deleted_at IS NULL`
 
 	var count int
-	err := r.db.QueryRow(query).Scan(&count)
+	err := database.QueryRow(query).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count admins: %w", err)
 	}

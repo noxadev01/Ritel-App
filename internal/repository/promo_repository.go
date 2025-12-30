@@ -26,7 +26,7 @@ func (r *PromoRepository) Create(promo *models.Promo) error {
             produk_x, produk_y,
             created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id
     `
 
 	var produkX, produkY interface{}
@@ -41,7 +41,8 @@ func (r *PromoRepository) Create(promo *models.Promo) error {
 		produkY = nil
 	}
 
-	result, err := database.DB.Exec(query,
+	var id int64
+	err := database.QueryRow(query,
 		promo.Nama,
 		promo.Kode,
 		promo.Tipe,
@@ -62,14 +63,9 @@ func (r *PromoRepository) Create(promo *models.Promo) error {
 		promo.DiskonBundling,
 		produkX,
 		produkY,
-	)
+	).Scan(&id)
 	if err != nil {
 		return fmt.Errorf("failed to create promo: %w", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get last insert id: %w", err)
 	}
 
 	promo.ID = int(id)
@@ -94,7 +90,7 @@ func (r *PromoRepository) GetAll() ([]*models.Promo, error) {
 		ORDER BY p.created_at DESC
 	`
 
-	rows, err := database.DB.Query(query)
+	rows, err := database.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query promo: %w", err)
 	}
@@ -216,7 +212,7 @@ func (r *PromoRepository) GetByID(id int) (*models.Promo, error) {
 	var produkXNama, produkXHarga, produkYNama, produkYHarga sql.NullString
 	var minQuantity sql.NullInt64 // TAMBAH INI
 
-	err := database.DB.QueryRow(query, id).Scan(
+	err := database.QueryRow(query, id).Scan(
 		&p.ID,
 		&p.Nama,
 		&kode,
@@ -329,7 +325,7 @@ func (r *PromoRepository) GetByKode(kode string) (*models.Promo, error) {
 	var produkXID, produkYID sql.NullInt64
 	var produkXNama, produkXHarga, produkYNama, produkYHarga sql.NullString
 
-	err := database.DB.QueryRow(query, kode).Scan(
+	err := database.QueryRow(query, kode).Scan(
 		&p.ID, &p.Nama, &kodeVal, &p.Tipe, &tipePromo, &tipeProdukBerlaku, &p.Nilai,
 		&p.MinQuantity, &p.MaxDiskon, &tanggalMulai, &tanggalSelesai,
 		&p.Status, &deskripsi, &p.BuyQuantity, &p.GetQuantity,
@@ -415,7 +411,7 @@ func (r *PromoRepository) GetActivePromos() ([]*models.Promo, error) {
         ORDER BY p.created_at DESC
     `
 
-	rows, err := database.DB.Query(query)
+	rows, err := database.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query active promos: %w", err)
 	}
@@ -524,7 +520,7 @@ func (r *PromoRepository) Update(promo *models.Promo) error {
             max_diskon = ?, tanggal_mulai = ?, tanggal_selesai = ?,
             status = ?, deskripsi = ?, buy_quantity = ?, get_quantity = ?, tipe_buy_get = ?,
             harga_bundling = ?, tipe_bundling = ?, diskon_bundling = ?,
-            produk_x = ?, produk_y = ?, updated_at = datetime('now')
+            produk_x = ?, produk_y = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
     `
 
@@ -540,7 +536,7 @@ func (r *PromoRepository) Update(promo *models.Promo) error {
 		produkY = nil
 	}
 
-	result, err := database.DB.Exec(query,
+	result, err := database.Exec(query,
 		promo.Nama,
 		promo.Kode,
 		promo.Tipe,
@@ -589,7 +585,7 @@ func parseInt(s string) int {
 func (r *PromoRepository) Delete(id int) error {
 	query := `DELETE FROM promo WHERE id = ?`
 
-	result, err := database.DB.Exec(query, id)
+	result, err := database.Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete promo: %w", err)
 	}
@@ -610,10 +606,10 @@ func (r *PromoRepository) Delete(id int) error {
 func (r *PromoRepository) AddPromoProduk(promoID, produkID int) error {
 	query := `
 		INSERT INTO promo_produk (promo_id, produk_id, created_at)
-		VALUES (?, ?, datetime('now'))
+		VALUES (?, ?, CURRENT_TIMESTAMP)
 	`
 
-	_, err := database.DB.Exec(query, promoID, produkID)
+	_, err := database.Exec(query, promoID, produkID)
 	if err != nil {
 		return fmt.Errorf("failed to add promo produk: %w", err)
 	}
@@ -625,7 +621,7 @@ func (r *PromoRepository) AddPromoProduk(promoID, produkID int) error {
 func (r *PromoRepository) RemovePromoProduk(promoID, produkID int) error {
 	query := `DELETE FROM promo_produk WHERE promo_id = ? AND produk_id = ?`
 
-	result, err := database.DB.Exec(query, promoID, produkID)
+	result, err := database.Exec(query, promoID, produkID)
 	if err != nil {
 		return fmt.Errorf("failed to remove promo produk: %w", err)
 	}
@@ -669,7 +665,7 @@ func (r *PromoRepository) GetPromoProducts(promoID int) ([]*models.Produk, error
             ORDER BY p.nama ASC
         `
 
-		rows, err := database.DB.Query(query, promoID)
+		rows, err := database.Query(query, promoID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query promo products: %w", err)
 		}
@@ -755,7 +751,7 @@ func (r *PromoRepository) GetPromoForProduct(produkID int) ([]*models.Promo, err
         ORDER BY p.nilai DESC
     `
 
-	rows, err := database.DB.Query(query, produkID, now, now)
+	rows, err := database.Query(query, produkID, now, now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query product promos: %w", err)
 	}

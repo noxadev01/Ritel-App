@@ -559,12 +559,12 @@ const UpdateStok = () => {
                 produk: produk || null
             };
         })
-        .filter(batch => batch.produk !== null) // Only include batches with valid product
-        .filter(batch => {
-            // Filter out expired batches (only show batches that are approaching expiry, not already expired)
-            const remainingDays = getRemainingDays(batch.tanggalKadaluarsa);
-            return remainingDays >= 0; // Only include batches that haven't expired yet
-        });
+            .filter(batch => batch.produk !== null) // Only include batches with valid product
+            .filter(batch => {
+                // Filter out expired batches (only show batches that are approaching expiry, not already expired)
+                const remainingDays = getRemainingDays(batch.tanggalKadaluarsa);
+                return remainingDays >= 0; // Only include batches that haven't expired yet
+            });
     };
 
     const expiringBatchesWithProduct = getExpiringBatchesWithProduct();
@@ -1167,7 +1167,7 @@ const UpdateStok = () => {
                                                 <td className="px-4 py-3 whitespace-nowrap text-center">
                                                     <div className="flex items-center justify-center space-x-2">
                                                         <button
-                                                            onClick={() => handleprodukAPI.updateStok(produk)}
+                                                            onClick={() => handleUpdateStok(produk)}
                                                             className="text-blue-600 hover:text-blue-800 transition-colors p-2 rounded-lg hover:bg-blue-50"
                                                             title="Update Stok"
                                                         >
@@ -1418,7 +1418,7 @@ const UpdateStok = () => {
                         </div>
 
                         <div className="p-4 overflow-y-auto flex-1">
-                        {/* Batch List Section */}
+                            {/* Batch List Section */}
                             <div className="mb-6">
                                 <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center">
                                     <FontAwesomeIcon icon={faBoxOpen} className="text-green-600 mr-2" />

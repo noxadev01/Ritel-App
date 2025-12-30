@@ -161,7 +161,8 @@ func (s *BatchService) GetExpiringBatches(daysThreshold int) ([]*models.Batch, e
 	// So we just need to get the batches and recalculate their status for display
 	batches, err := s.batchRepo.GetExpiringBatches(daysThreshold)
 	if err != nil {
-		return nil, err
+		fmt.Printf("[BATCH SERVICE] Error getting expiring batches: %v\n", err)
+		return nil, fmt.Errorf("failed to get expiring batches: %w", err)
 	}
 
 	// Recalculate status for each batch based on product's notification days

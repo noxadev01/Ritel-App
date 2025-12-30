@@ -25,8 +25,8 @@ func NewServer(services *container.ServiceContainer, cfg config.ServerConfig) *S
 	// Initialize JWT manager
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiry)
 
-	// Setup router with all routes
-	router := SetupRouter(services, jwtManager, cfg.CORSOrigins, cfg.CORSCredentials)
+	// Setup router with all routes (pass full config for rate limiting)
+	router := SetupRouter(services, jwtManager, cfg)
 
 	// Create HTTP server
 	httpServer := &http.Server{

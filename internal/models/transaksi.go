@@ -61,20 +61,21 @@ type TransaksiDetail struct {
 
 // CreateTransaksiRequest represents request to create a new transaction
 type CreateTransaksiRequest struct {
-	PelangganID   int                    `json:"pelangganId"`
-	PelangganNama string                 `json:"pelangganNama"`
-	PelangganTelp string                 `json:"pelangganTelp"`
-	Items         []TransaksiItemRequest `json:"items"`
-	Pembayaran    []PembayaranRequest    `json:"pembayaran"`
-	PromoKode     string                 `json:"promoKode"`
-	PoinDitukar   int                    `json:"poinDitukar"` // Jumlah poin yang ingin ditukar
-	Diskon        int                    `json:"diskon"`
-	Catatan       string                 `json:"catatan"`
-	Kasir         string                 `json:"kasir"`
-	StaffID       int                    `json:"staffId"` // ID staff yang melakukan transaksi
-	StaffNama     string                 `json:"staffNama"`
-	CreatedAt     time.Time              `json:"createdAt"`
-	// Nama staff
+	PelangganID     int                    `json:"pelangganId"`
+	PelangganNama   string                 `json:"pelangganNama"`
+	PelangganTelp   string                 `json:"pelangganTelp"`
+	Items           []TransaksiItemRequest `json:"items"`
+	Pembayaran      []PembayaranRequest    `json:"pembayaran"`
+	PromoKode       string                 `json:"promoKode"`
+	PoinDitukar     int                    `json:"poinDitukar"`     // Jumlah poin yang ingin ditukar
+	Diskon          int                    `json:"diskon"`          // Total diskon
+	DiskonPromo     int                    `json:"diskonPromo"`     // Diskon dari promo
+	DiskonPelanggan int                    `json:"diskonPelanggan"` // Diskon dari level pelanggan
+	Catatan         string                 `json:"catatan"`
+	Kasir           string                 `json:"kasir"`
+	StaffID         int                    `json:"staffId"`   // ID staff yang melakukan transaksi
+	StaffNama       string                 `json:"staffNama"` // Nama staff
+	CreatedAt       time.Time              `json:"createdAt"`
 }
 
 // TransaksiItemRequest represents item in create transaction request

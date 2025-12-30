@@ -40,6 +40,20 @@ client.interceptors.response.use(
     return response.data;
   },
   (error) => {
+    // DEBUG: Log full error untuk debugging
+    console.error('[API] Full error:', error);
+    console.error('[API] Error code:', error.code);
+    console.error('[API] Error message:', error.message);
+    console.error('[API] Error config:', error.config);
+    console.error('[API] Error response:', error.response);
+
+    // Handle network errors (offline/connection issues)
+    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || !navigator.onLine) {
+      console.warn('[API] Network error detected - operation may be queued for sync');
+      // Return original error for debugging
+      return Promise.reject(error);
+    }
+
     // Handle 401 Unauthorized - token expired or invalid
     if (error.response?.status === 401) {
       // Clear local storage
@@ -52,11 +66,18 @@ client.interceptors.response.use(
       }
     }
 
+    // Handle 429 Too Many Requests (rate limiting)
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers['retry-after'];
+      const errorMessage = `Terlalu banyak request. Silakan coba lagi ${retryAfter ? `dalam ${retryAfter} detik` : 'beberapa saat lagi'}.`;
+      return Promise.reject(new Error(errorMessage));
+    }
+
     // Extract error message from response
     const errorMessage = error.response?.data?.message ||
                         error.response?.data?.error ||
                         error.message ||
-                        'An error occurred';
+                        'Terjadi kesalahan pada server';
 
     // Return a rejected promise with the error message
     return Promise.reject(new Error(errorMessage));

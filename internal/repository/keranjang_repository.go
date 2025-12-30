@@ -36,7 +36,7 @@ func (r *KeranjangRepository) AddItem(produkID int, jumlah int, hargaBeli int) e
 		VALUES (?, ?, ?, ?)
 	`
 
-	_, err = database.DB.Exec(query, produkID, jumlah, hargaBeli, subtotal)
+	_, err = database.Exec(query, produkID, jumlah, hargaBeli, subtotal)
 	if err != nil {
 		return fmt.Errorf("failed to add item to cart: %w", err)
 	}
@@ -53,7 +53,7 @@ func (r *KeranjangRepository) GetByProdukID(produkID int) (*models.Keranjang, er
 	`
 
 	item := &models.Keranjang{}
-	err := database.DB.QueryRow(query, produkID).Scan(
+	err := database.QueryRow(query, produkID).Scan(
 		&item.ID,
 		&item.ProdukID,
 		&item.Jumlah,
@@ -85,7 +85,7 @@ func (r *KeranjangRepository) GetAll() ([]*models.KeranjangItem, error) {
 		ORDER BY k.created_at DESC
 	`
 
-	rows, err := database.DB.Query(query)
+	rows, err := database.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cart items: %w", err)
 	}
@@ -142,7 +142,7 @@ func (r *KeranjangRepository) GetAll() ([]*models.KeranjangItem, error) {
 func (r *KeranjangRepository) UpdateJumlah(id int, jumlah int) error {
 	// Get current item to recalculate subtotal
 	var hargaBeli int
-	err := database.DB.QueryRow("SELECT harga_beli FROM keranjang WHERE id = ?", id).Scan(&hargaBeli)
+	err := database.QueryRow("SELECT harga_beli FROM keranjang WHERE id = ?", id).Scan(&hargaBeli)
 	if err != nil {
 		return fmt.Errorf("failed to get cart item: %w", err)
 	}
@@ -150,7 +150,7 @@ func (r *KeranjangRepository) UpdateJumlah(id int, jumlah int) error {
 	subtotal := jumlah * hargaBeli
 	query := `UPDATE keranjang SET jumlah = ?, subtotal = ? WHERE id = ?`
 
-	_, err = database.DB.Exec(query, jumlah, subtotal, id)
+	_, err = database.Exec(query, jumlah, subtotal, id)
 	if err != nil {
 		return fmt.Errorf("failed to update cart item: %w", err)
 	}
@@ -162,7 +162,7 @@ func (r *KeranjangRepository) UpdateJumlah(id int, jumlah int) error {
 func (r *KeranjangRepository) DeleteItem(id int) error {
 	query := `DELETE FROM keranjang WHERE id = ?`
 
-	_, err := database.DB.Exec(query, id)
+	_, err := database.Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete cart item: %w", err)
 	}
@@ -174,7 +174,7 @@ func (r *KeranjangRepository) DeleteItem(id int) error {
 func (r *KeranjangRepository) Clear() error {
 	query := `DELETE FROM keranjang`
 
-	_, err := database.DB.Exec(query)
+	_, err := database.Exec(query)
 	if err != nil {
 		return fmt.Errorf("failed to clear cart: %w", err)
 	}
@@ -187,7 +187,7 @@ func (r *KeranjangRepository) GetTotal() (int, error) {
 	query := `SELECT COALESCE(SUM(subtotal), 0) FROM keranjang`
 
 	var total int
-	err := database.DB.QueryRow(query).Scan(&total)
+	err := database.QueryRow(query).Scan(&total)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get cart total: %w", err)
 	}

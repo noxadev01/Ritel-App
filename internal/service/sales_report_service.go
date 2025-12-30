@@ -642,7 +642,8 @@ func (s *SalesReportService) calculateLossAnalysis(startDate, endDate time.Time)
 		GROUP BY sh.tipe_kerugian
 	`
 
-	rows, err := database.DB.Query(query, startDate, endDate)
+	// Use database.Query() wrapper for proper placeholder translation (? -> $1, $2 for PostgreSQL)
+	rows, err := database.Query(query, startDate, endDate)
 	if err != nil {
 		fmt.Printf("[ERROR] Failed to query loss data: %v\n", err)
 		return &models.LossAnalysisData{
@@ -760,6 +761,11 @@ func (s *SalesReportService) calculateLossAnalysis(startDate, endDate time.Time)
 	}
 }
 
+// toLocalTime interprets a timestamp as local time (for PostgreSQL TIMESTAMP WITHOUT TIME ZONE)
+func toLocalTime(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.Local)
+}
+
 // calculateSalesTrendData calculates sales trend for a given period type
 func (s *SalesReportService) calculateSalesTrendData(transaksiList []*models.Transaksi, periodType string) models.SalesReportPeriodData {
 	now := time.Now().In(time.Local) // Normalize now to local start of day
@@ -781,7 +787,8 @@ func (s *SalesReportService) calculateSalesTrendData(transaksiList []*models.Tra
 
 			var currentSlotTotal float64
 			for _, t := range transaksiList {
-				if t.CreatedAt.After(slotStart) && t.CreatedAt.Before(slotEnd) || t.CreatedAt.Equal(slotStart) {
+				tLocal := toLocalTime(t.CreatedAt)
+				if (tLocal.After(slotStart) || tLocal.Equal(slotStart)) && tLocal.Before(slotEnd) {
 					currentSlotTotal += float64(t.Total)
 				}
 			}
@@ -808,7 +815,8 @@ func (s *SalesReportService) calculateSalesTrendData(transaksiList []*models.Tra
 
 			var currentDayTotal float64
 			for _, t := range transaksiList {
-				if t.CreatedAt.After(dayStart) && t.CreatedAt.Before(dayEnd) || t.CreatedAt.Equal(dayStart) {
+				tLocal := toLocalTime(t.CreatedAt)
+				if (tLocal.After(dayStart) || tLocal.Equal(dayStart)) && tLocal.Before(dayEnd) {
 					currentDayTotal += float64(t.Total)
 				}
 			}
@@ -835,7 +843,8 @@ func (s *SalesReportService) calculateSalesTrendData(transaksiList []*models.Tra
 
 			var currentDayTotal float64
 			for _, t := range transaksiList {
-				if t.CreatedAt.After(dayStart) && t.CreatedAt.Before(dayEnd) || t.CreatedAt.Equal(dayStart) {
+				tLocal := toLocalTime(t.CreatedAt)
+				if (tLocal.After(dayStart) || tLocal.Equal(dayStart)) && tLocal.Before(dayEnd) {
 					currentDayTotal += float64(t.Total)
 				}
 			}
@@ -870,7 +879,8 @@ func (s *SalesReportService) calculateDiscountTrendData(transaksiList []*models.
 			var currentSlotSales float64
 			var currentSlotDiscount float64
 			for _, t := range transaksiList {
-				if t.CreatedAt.After(slotStart) && t.CreatedAt.Before(slotEnd) || t.CreatedAt.Equal(slotStart) {
+				tLocal := toLocalTime(t.CreatedAt)
+				if (tLocal.After(slotStart) || tLocal.Equal(slotStart)) && tLocal.Before(slotEnd) {
 					currentSlotSales += float64(t.Total)
 					currentSlotDiscount += float64(t.Diskon)
 				}
@@ -901,7 +911,8 @@ func (s *SalesReportService) calculateDiscountTrendData(transaksiList []*models.
 			var currentDaySales float64
 			var currentDayDiscount float64
 			for _, t := range transaksiList {
-				if t.CreatedAt.After(dayStart) && t.CreatedAt.Before(dayEnd) || t.CreatedAt.Equal(dayStart) {
+				tLocal := toLocalTime(t.CreatedAt)
+				if (tLocal.After(dayStart) || tLocal.Equal(dayStart)) && tLocal.Before(dayEnd) {
 					currentDaySales += float64(t.Total)
 					currentDayDiscount += float64(t.Diskon)
 				}
@@ -932,7 +943,8 @@ func (s *SalesReportService) calculateDiscountTrendData(transaksiList []*models.
 			var currentDaySales float64
 			var currentDayDiscount float64
 			for _, t := range transaksiList {
-				if t.CreatedAt.After(dayStart) && t.CreatedAt.Before(dayEnd) || t.CreatedAt.Equal(dayStart) {
+				tLocal := toLocalTime(t.CreatedAt)
+				if (tLocal.After(dayStart) || tLocal.Equal(dayStart)) && tLocal.Before(dayEnd) {
 					currentDaySales += float64(t.Total)
 					currentDayDiscount += float64(t.Diskon)
 				}
@@ -965,7 +977,8 @@ func (s *SalesReportService) calculateHourlyTrendData(transaksiList []*models.Tr
 
 			var currentSlotTotal float64
 			for _, t := range transaksiList {
-				if t.CreatedAt.After(slotStart) && t.CreatedAt.Before(slotEnd) || t.CreatedAt.Equal(slotStart) {
+				tLocal := toLocalTime(t.CreatedAt)
+				if (tLocal.After(slotStart) || tLocal.Equal(slotStart)) && tLocal.Before(slotEnd) {
 					currentSlotTotal += float64(t.Total)
 				}
 			}
@@ -986,7 +999,8 @@ func (s *SalesReportService) calculateHourlyTrendData(transaksiList []*models.Tr
 
 			var currentDayTotal float64
 			for _, t := range transaksiList {
-				if t.CreatedAt.After(dayStart) && t.CreatedAt.Before(dayEnd) || t.CreatedAt.Equal(dayStart) {
+				tLocal := toLocalTime(t.CreatedAt)
+				if (tLocal.After(dayStart) || tLocal.Equal(dayStart)) && tLocal.Before(dayEnd) {
 					currentDayTotal += float64(t.Total)
 				}
 			}
@@ -1008,7 +1022,8 @@ func (s *SalesReportService) calculateHourlyTrendData(transaksiList []*models.Tr
 
 			var currentDayTotal float64
 			for _, t := range transaksiList {
-				if t.CreatedAt.After(dayStart) && t.CreatedAt.Before(dayEnd) || t.CreatedAt.Equal(dayStart) {
+				tLocal := toLocalTime(t.CreatedAt)
+				if (tLocal.After(dayStart) || tLocal.Equal(dayStart)) && tLocal.Before(dayEnd) {
 					currentDayTotal += float64(t.Total)
 				}
 			}

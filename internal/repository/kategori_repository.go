@@ -19,21 +19,17 @@ func NewKategoriRepository() *KategoriRepository {
 func (r *KategoriRepository) Create(kategori *models.Kategori) error {
 	query := `
 		INSERT INTO kategori (nama, deskripsi, icon, created_at, updated_at)
-		VALUES (?, ?, ?, datetime('now'), datetime('now'))
+		VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id
 	`
 
-	result, err := database.DB.Exec(query,
+	var id int64
+	err := database.QueryRow(query,
 		kategori.Nama,
 		kategori.Deskripsi,
 		kategori.Icon,
-	)
+	).Scan(&id)
 	if err != nil {
 		return fmt.Errorf("failed to create kategori: %w", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get last insert id: %w", err)
 	}
 
 	kategori.ID = int(id)
@@ -57,7 +53,7 @@ func (r *KategoriRepository) GetAll() ([]*models.Kategori, error) {
 		ORDER BY k.nama ASC
 	`
 
-	rows, err := database.DB.Query(query)
+	rows, err := database.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query kategori: %w", err)
 	}
@@ -102,7 +98,7 @@ func (r *KategoriRepository) GetByID(id int) (*models.Kategori, error) {
 	`
 
 	var k models.Kategori
-	err := database.DB.QueryRow(query, id).Scan(
+	err := database.QueryRow(query, id).Scan(
 		&k.ID,
 		&k.Nama,
 		&k.Deskripsi,
@@ -140,7 +136,7 @@ func (r *KategoriRepository) GetByNama(nama string) (*models.Kategori, error) {
 	`
 
 	var k models.Kategori
-	err := database.DB.QueryRow(query, nama).Scan(
+	err := database.QueryRow(query, nama).Scan(
 		&k.ID,
 		&k.Nama,
 		&k.Deskripsi,
@@ -168,7 +164,7 @@ func (r *KategoriRepository) Update(kategori *models.Kategori) error {
 		WHERE id = ?
 	`
 
-	result, err := database.DB.Exec(query,
+	result, err := database.Exec(query,
 		kategori.Nama,
 		kategori.Deskripsi,
 		kategori.Icon,
@@ -194,7 +190,7 @@ func (r *KategoriRepository) Update(kategori *models.Kategori) error {
 func (r *KategoriRepository) Delete(id int) error {
 	query := `DELETE FROM kategori WHERE id = ?`
 
-	result, err := database.DB.Exec(query, id)
+	result, err := database.Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete kategori: %w", err)
 	}

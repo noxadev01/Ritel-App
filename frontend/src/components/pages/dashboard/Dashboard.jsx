@@ -281,6 +281,14 @@ const Dashboard = ({ formatRupiah, userName = "Admin" }) => {
                     dashboardAPI.getCategoryChart()      // DI-AKTIFKAN KEMBALI
                 ]);
 
+                // Sanitize performaHariIni data to prevent negative values
+                if (dashboardData?.performaHariIni) {
+                    dashboardData.performaHariIni = dashboardData.performaHariIni.map(item => ({
+                        ...item,
+                        value: Math.max(0, item.value || 0)
+                    }));
+                }
+
                 setData(dashboardData);
 
                 // Debug logging
@@ -328,33 +336,39 @@ const Dashboard = ({ formatRupiah, userName = "Admin" }) => {
     };
 
     // Komponen Kartu Statistik
-    const StatCard = ({ title, value, trend, icon, isCurrency = false, badge }) => (
-        <div className="bg-white rounded-xl shadow-md p-6 card-hover border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center">
-                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-3 border border-green-200">
-                        <FontAwesomeIcon icon={icon} className="h-6 w-6 text-green-700" />
+    // Total Pendapatan dan Keuntungan Bersih tidak bisa minus (minimum 0)
+    const StatCard = ({ title, value, trend, icon, isCurrency = false, badge }) => {
+        // Pastikan nilai tidak negatif untuk currency (Total Pendapatan, Keuntungan Bersih)
+        const safeValue = isCurrency ? Math.max(0, value || 0) : (value || 0);
+
+        return (
+            <div className="bg-white rounded-xl shadow-md p-6 card-hover border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-3 border border-green-200">
+                            <FontAwesomeIcon icon={icon} className="h-6 w-6 text-green-700" />
+                        </div>
+                        <div>
+                            <h3 className="text-gray-600 text-sm font-medium">{title}</h3>
+                            <p className="text-2xl font-bold text-gray-800 mt-1">
+                                {isCurrency ? formatRupiah(safeValue) : formatNumber(safeValue)}
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="text-gray-600 text-sm font-medium">{title}</h3>
-                        <p className="text-2xl font-bold text-gray-800 mt-1">
-                            {isCurrency ? formatRupiah(value || 0) : formatNumber(value || 0)}
-                        </p>
-                    </div>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full border border-gray-300">{badge}</span>
                 </div>
-                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full border border-gray-300">{badge}</span>
+                <div className="flex items-center mt-2">
+                    <FontAwesomeIcon
+                        icon={trend > 0 ? faArrowUp : faArrowDown}
+                        className={`h-4 w-4 mr-1 ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}
+                    />
+                    <span className={`text-xs font-medium ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {(Math.abs(trend || 0)).toFixed(1)}% dari bulan lalu
+                    </span>
+                </div>
             </div>
-            <div className="flex items-center mt-2">
-                <FontAwesomeIcon
-                    icon={trend > 0 ? faArrowUp : faArrowDown}
-                    className={`h-4 w-4 mr-1 ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}
-                />
-                <span className={`text-xs font-medium ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {(Math.abs(trend || 0)).toFixed(1)}% dari bulan lalu
-                </span>
-            </div>
-        </div>
-    );
+        );
+    };
 
     // Komponen Notifikasi
     const NotificationItem = ({ title, message, priority, time, type }) => {
@@ -474,6 +488,9 @@ const Dashboard = ({ formatRupiah, userName = "Admin" }) => {
             faUsers: faUsers
         };
 
+        // Ensure value is never negative
+        const safeValue = Math.max(0, item.value || 0);
+
         return (
             <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 hover:border-green-300">
                 <div className="flex items-center">
@@ -486,7 +503,7 @@ const Dashboard = ({ formatRupiah, userName = "Admin" }) => {
                 </div>
                 <div className="text-right">
                     <p className="text-lg font-bold text-gray-800">
-                        {item.title.includes('Omzet') ? formatRupiah(item.value) : item.value}
+                        {item.title.includes('Omzet') || item.title.includes('Omset') ? formatRupiah(safeValue) : safeValue}
                     </p>
                     <span className={`text-xs font-medium ${item.trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {item.trend > 0 ? '+' : ''}{item.trend}%
@@ -597,7 +614,7 @@ const Dashboard = ({ formatRupiah, userName = "Admin" }) => {
                                         labels: salesData[salesFilter].labels || [],
                                         datasets: [{
                                             label: 'Penjualan',
-                                            data: salesData[salesFilter].data || [],
+                                            data: (salesData[salesFilter].data || []).map(v => Math.max(0, v || 0)),
                                             borderColor: '#15803d',
                                             backgroundColor: 'rgba(21, 128, 61, 0.1)',
                                             borderWidth: 2,
@@ -619,7 +636,7 @@ const Dashboard = ({ formatRupiah, userName = "Admin" }) => {
                                                         let label = context.dataset.label || '';
                                                         if (label) { label += ': '; }
                                                         if (context.parsed.y !== null) {
-                                                            label += formatRupiah(context.parsed.y);
+                                                            label += formatRupiah(Math.max(0, context.parsed.y));
                                                         }
                                                         return label;
                                                     }
@@ -628,7 +645,8 @@ const Dashboard = ({ formatRupiah, userName = "Admin" }) => {
                                         },
                                         scales: {
                                             y: {
-                                                beginAtZero: false,
+                                                beginAtZero: true,
+                                                min: 0,
                                                 ticks: {
                                                     callback: function (value) {
                                                         if (value >= 1000000) { return 'Rp ' + (value / 1000000).toFixed(1) + 'jt'; }

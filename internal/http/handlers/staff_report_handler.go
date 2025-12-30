@@ -188,3 +188,28 @@ func (h *StaffReportHandler) GetMonthlyTrend(c *gin.Context) {
 	}
 	response.Success(c, data, "Monthly trend retrieved successfully")
 }
+
+func (h *StaffReportHandler) GetWithMonthlyTrend(c *gin.Context) {
+	staffID, _ := strconv.Atoi(c.Param("id"))
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+
+	startDate, err := time.Parse("2006-01-02", startDateStr)
+	if err != nil {
+		response.BadRequest(c, "Invalid start date format", err)
+		return
+	}
+
+	endDate, err := time.Parse("2006-01-02", endDateStr)
+	if err != nil {
+		response.BadRequest(c, "Invalid end date format", err)
+		return
+	}
+
+	report, err := h.services.StaffReportService.GetStaffReportWithMonthlyTrend(staffID, startDate, endDate)
+	if err != nil {
+		response.InternalServerError(c, "Failed to get staff report with monthly trend", err)
+		return
+	}
+	response.Success(c, report, "Staff report with monthly trend retrieved successfully")
+}

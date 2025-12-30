@@ -24,10 +24,11 @@ func (r *ProdukRepository) Create(produk *models.Produk) error {
 			sku, barcode, nama, kategori, berat, harga_beli, harga_jual,
 			stok, satuan, jenis_produk, kadaluarsa, tanggal_masuk, deskripsi, gambar,
 			hari_pemberitahuan_kadaluarsa, masa_simpan_hari
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
 	`
 
-	result, err := database.DB.Exec(
+	var id int64
+	err := database.QueryRow(
 		query,
 		produk.SKU,
 		produk.Barcode,
@@ -45,15 +46,10 @@ func (r *ProdukRepository) Create(produk *models.Produk) error {
 		produk.Gambar,
 		produk.HariPemberitahuanKadaluarsa,
 		produk.MasaSimpanHari,
-	)
+	).Scan(&id)
 
 	if err != nil {
 		return fmt.Errorf("failed to insert product: %w", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get last insert id: %w", err)
 	}
 
 	produk.ID = int(id)
@@ -75,12 +71,12 @@ func (r *ProdukRepository) GetByBarcode(barcode string) (*models.Produk, error) 
 	`
 
 	produk := &models.Produk{}
-	var kadaluarsa, tanggalMasuk, gambar, jenisProduk sql.NullString
+	var barcodeNull, kadaluarsa, tanggalMasuk, gambar, jenisProduk sql.NullString
 
-	err := database.DB.QueryRow(query, barcode).Scan(
+	err := database.QueryRow(query, barcode).Scan(
 		&produk.ID,
 		&produk.SKU,
-		&produk.Barcode,
+		&barcodeNull,
 		&produk.Nama,
 		&produk.Kategori,
 		&produk.Berat,
@@ -106,6 +102,9 @@ func (r *ProdukRepository) GetByBarcode(barcode string) (*models.Produk, error) 
 		return nil, fmt.Errorf("failed to get product by barcode: %w", err)
 	}
 
+	if barcodeNull.Valid {
+		produk.Barcode = barcodeNull.String
+	}
 	if jenisProduk.Valid {
 		produk.JenisProduk = jenisProduk.String
 	} else {
@@ -124,7 +123,6 @@ func (r *ProdukRepository) GetByBarcode(barcode string) (*models.Produk, error) 
 	return produk, nil
 }
 
-// GetBySKU retrieves a product by SKU
 // GetBySKU retrieves a product by SKU (excluding soft-deleted)
 func (r *ProdukRepository) GetBySKU(sku string) (*models.Produk, error) {
 	query := `
@@ -137,12 +135,12 @@ func (r *ProdukRepository) GetBySKU(sku string) (*models.Produk, error) {
 	`
 
 	produk := &models.Produk{}
-	var kadaluarsa, tanggalMasuk, gambar, jenisProduk sql.NullString
+	var barcodeNull, kadaluarsa, tanggalMasuk, gambar, jenisProduk sql.NullString
 
-	err := database.DB.QueryRow(query, sku).Scan(
+	err := database.QueryRow(query, sku).Scan(
 		&produk.ID,
 		&produk.SKU,
-		&produk.Barcode,
+		&barcodeNull,
 		&produk.Nama,
 		&produk.Kategori,
 		&produk.Berat,
@@ -168,6 +166,9 @@ func (r *ProdukRepository) GetBySKU(sku string) (*models.Produk, error) {
 		return nil, fmt.Errorf("failed to get product by SKU: %w", err)
 	}
 
+	if barcodeNull.Valid {
+		produk.Barcode = barcodeNull.String
+	}
 	if jenisProduk.Valid {
 		produk.JenisProduk = jenisProduk.String
 	} else {
@@ -198,7 +199,7 @@ func (r *ProdukRepository) GetAll() ([]*models.Produk, error) {
 		ORDER BY created_at DESC
 	`
 
-	rows, err := database.DB.Query(query)
+	rows, err := database.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all products: %w", err)
 	}
@@ -208,12 +209,12 @@ func (r *ProdukRepository) GetAll() ([]*models.Produk, error) {
 
 	for rows.Next() {
 		produk := &models.Produk{}
-		var kadaluarsa, tanggalMasuk, gambar, jenisProduk sql.NullString
+		var barcodeNull, kadaluarsa, tanggalMasuk, gambar, jenisProduk sql.NullString
 
 		err := rows.Scan(
 			&produk.ID,
 			&produk.SKU,
-			&produk.Barcode,
+			&barcodeNull,
 			&produk.Nama,
 			&produk.Kategori,
 			&produk.Berat,
@@ -236,6 +237,9 @@ func (r *ProdukRepository) GetAll() ([]*models.Produk, error) {
 			return nil, fmt.Errorf("failed to scan product: %w", err)
 		}
 
+		if barcodeNull.Valid {
+			produk.Barcode = barcodeNull.String
+		}
 		if jenisProduk.Valid {
 			produk.JenisProduk = jenisProduk.String
 		} else {
@@ -265,7 +269,7 @@ func (r *ProdukRepository) CreateStokHistory(history *models.StokHistory) error 
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `
 
-	_, err := database.DB.Exec(
+	_, err := database.Exec(
 		query,
 		history.ProdukID,
 		history.StokSebelum,
@@ -296,12 +300,12 @@ func (r *ProdukRepository) GetByID(id int) (*models.Produk, error) {
     `
 
 	produk := &models.Produk{}
-	var kadaluarsa, tanggalMasuk, gambar, jenisProduk sql.NullString
+	var barcodeNull, kadaluarsa, tanggalMasuk, gambar, jenisProduk sql.NullString
 
-	err := database.DB.QueryRow(query, id).Scan(
+	err := database.QueryRow(query, id).Scan(
 		&produk.ID,
 		&produk.SKU,
-		&produk.Barcode,
+		&barcodeNull,
 		&produk.Nama,
 		&produk.Kategori,
 		&produk.Berat,
@@ -327,6 +331,9 @@ func (r *ProdukRepository) GetByID(id int) (*models.Produk, error) {
 		return nil, fmt.Errorf("failed to get product by ID: %w", err)
 	}
 
+	if barcodeNull.Valid {
+		produk.Barcode = barcodeNull.String
+	}
 	if jenisProduk.Valid {
 		produk.JenisProduk = jenisProduk.String
 	} else {
@@ -356,7 +363,7 @@ func (r *ProdukRepository) GetStokHistory(produkID int) ([]*models.StokHistory, 
         ORDER BY created_at DESC
     `
 
-	rows, err := database.DB.Query(query, produkID)
+	rows, err := database.Query(query, produkID)
 	if err != nil {
 		log.Printf("[REPO] ❌ Error querying stock history for produk_id=%d: %v", produkID, err)
 		return nil, fmt.Errorf("failed to get stock history: %w", err)
@@ -427,7 +434,7 @@ func (r *ProdukRepository) Update(produk *models.Produk) error {
 		WHERE id = ?
 	`
 
-	result, err := database.DB.Exec(
+	result, err := database.Exec(
 		query,
 		produk.SKU,
 		produk.Barcode,
@@ -475,11 +482,11 @@ func (r *ProdukRepository) Delete(id int) error {
 
 	query := `
 		UPDATE produk
-		SET deleted_at = datetime('now'), updated_at = datetime('now')
+		SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ? AND deleted_at IS NULL
 	`
 
-	result, err := database.DB.Exec(query, id)
+	result, err := database.Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("gagal menghapus produk: %w", err)
 	}
@@ -502,11 +509,11 @@ func (r *ProdukRepository) Delete(id int) error {
 func (r *ProdukRepository) Restore(id int) error {
 	query := `
 		UPDATE produk
-		SET deleted_at = NULL, updated_at = datetime('now')
+		SET deleted_at = NULL, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ? AND deleted_at IS NOT NULL
 	`
 
-	result, err := database.DB.Exec(query, id)
+	result, err := database.Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("gagal me-restore produk: %w", err)
 	}
@@ -537,7 +544,7 @@ func (r *ProdukRepository) GetDeleted() ([]*models.Produk, error) {
 		ORDER BY deleted_at DESC
 	`
 
-	rows, err := database.DB.Query(query)
+	rows, err := database.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query deleted products: %w", err)
 	}
@@ -546,12 +553,12 @@ func (r *ProdukRepository) GetDeleted() ([]*models.Produk, error) {
 	var produks []*models.Produk
 	for rows.Next() {
 		produk := &models.Produk{}
-		var kadaluarsa, tanggalMasuk, gambar, jenisProduk sql.NullString
+		var barcodeNull, kadaluarsa, tanggalMasuk, gambar, jenisProduk sql.NullString
 
 		err := rows.Scan(
 			&produk.ID,
 			&produk.SKU,
-			&produk.Barcode,
+			&barcodeNull,
 			&produk.Nama,
 			&produk.Kategori,
 			&produk.Berat,
@@ -574,6 +581,9 @@ func (r *ProdukRepository) GetDeleted() ([]*models.Produk, error) {
 			return nil, fmt.Errorf("failed to scan product: %w", err)
 		}
 
+		if barcodeNull.Valid {
+			produk.Barcode = barcodeNull.String
+		}
 		if kadaluarsa.Valid {
 			produk.Kadaluarsa = kadaluarsa.String
 		}
@@ -596,7 +606,7 @@ func (r *ProdukRepository) GetDeleted() ([]*models.Produk, error) {
 func (r *ProdukRepository) UpdateStok(id int, stok float64) error {
 	query := `UPDATE produk SET stok = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
 
-	_, err := database.DB.Exec(query, stok, id)
+	_, err := database.Exec(query, stok, id)
 	if err != nil {
 		return fmt.Errorf("failed to update stock: %w", err)
 	}
@@ -608,7 +618,7 @@ func (r *ProdukRepository) UpdateStok(id int, stok float64) error {
 func (r *ProdukRepository) UpdateStokIncrement(id int, perubahan float64) error {
 	query := `UPDATE produk SET stok = stok + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
 
-	_, err := database.DB.Exec(query, perubahan, id)
+	_, err := database.Exec(query, perubahan, id)
 	if err != nil {
 		return fmt.Errorf("failed to update stock increment: %w", err)
 	}

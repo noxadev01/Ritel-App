@@ -1,0 +1,44 @@
+✓ File .env berhasil dimuat dari: C:\Users\Hp\Documents\Project\Ritel-App\.env
+2025/12/20 11:38:37 main.go:32: ========================================
+2025/12/20 11:38:37 main.go:33: 🚀 RITEL-APP STARTING
+2025/12/20 11:38:37 main.go:34: ========================================
+2025/12/20 11:38:37 main.go:37: [INIT] Initializing database...
+
+📋 KONFIGURASI DATABASE
+========================================
+✓ Sumber: File .env
+  Lokasi: C:\Users\Hp\Documents\Project\Ritel-App\.env
+🔧 Driver: postgres
+🔗 DSN: host=localhost port=5432 user=ritel password=**** dbname=ritel_db sslmode=disable
+========================================
+
+========================================
+📊 POSTGRESQL MODE
+========================================
+📊 Menghubungkan ke PostgreSQL... ✓ BERHASIL
+⚙️  Menyiapkan schema database...
+2025/12/20 11:38:37 database.go:886: All tables, indexes, and triggers created successfully
+2025/12/20 11:38:37 database.go:598: Warning: Failed to fix transaksi_item schema: failed to check migration status: pq: syntax error at end of input
+2025/12/20 11:38:37 database.go:740: ========================================
+2025/12/20 11:38:37 database.go:741: [DATABASE FIX] Starting FixOrphanedTransactionItems
+2025/12/20 11:38:37 database.go:742: ========================================
+2025/12/20 11:38:37 database.go:746: [DATABASE FIX] Creating table backup: transaksi_item_backup_20251220_113837
+2025/12/20 11:38:37 database.go:763: [DATABASE FIX] ✓ No orphaned transaction items found.
+✓ Database siap digunakan!
+========================================
+2025/12/20 11:38:37 main.go:41: [INIT] Database initialized successfully
+2025/12/20 11:38:37 main.go:44: [INIT] Initializing service container...
+2025/12/20 11:38:37 service_container.go:31: [CONTAINER] Initializing service container...
+2025/12/20 11:38:37 user_service.go:351: [USER] Admin user already exists
+2025/12/20 11:38:37 service_container.go:54: [CONTAINER] All services initialized successfully
+2025/12/20 11:38:37 main.go:46: [INIT] Service container initialized
+2025/12/20 11:38:37 main.go:57: ========================================
+2025/12/20 11:38:37 main.go:58: 🌐 WEB SERVER ENABLED
+2025/12/20 11:38:37 main.go:59: ========================================
+2025/12/20 11:38:37 server.go:48: [HTTP] Starting web server on 0.0.0.0:8080
+2025/12/20 11:38:37 server.go:56: [HTTP] Web server started successfully
+2025/12/20 11:38:37 server.go:57: [HTTP] API endpoints available at http://0.0.0.0:8080/api
+2025/12/20 11:38:37 server.go:58: [HTTP] Health check at http://0.0.0.0:8080/health
+2025/12/20 11:38:37 main.go:95: ========================================
+2025/12/20 11:38:37 main.go:96: 🖥️  STARTING DESKTOP APP (WAILS)
+2025/12/20 11:38:37 main.go:97: ========================================

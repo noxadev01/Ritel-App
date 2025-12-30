@@ -213,20 +213,46 @@ func (r *BatchRepository) GetExpiringBatches(daysThreshold int) ([]*models.Batch
 	// Only show batches where:
 	// 1. qty_tersisa > 0 (still has stock)
 	// 2. Days until expiry <= product's hari_pemberitahuan_kadaluarsa setting
-	query := `
-		SELECT
-			b.id, b.produk_id, b.qty, b.qty_tersisa, b.tanggal_restok,
-			b.masa_simpan_hari, b.tanggal_kadaluarsa, b.status,
-			b.supplier, b.keterangan, b.created_at, b.updated_at,
-			p.hari_pemberitahuan_kadaluarsa,
-			p.nama as produk_nama,
-			CAST(julianday(b.tanggal_kadaluarsa) - julianday('now') AS INTEGER) as days_diff
-		FROM batch b
-		INNER JOIN produk p ON b.produk_id = p.id
-		WHERE b.qty_tersisa > 0
-		  AND julianday(b.tanggal_kadaluarsa) - julianday('now') <= p.hari_pemberitahuan_kadaluarsa
-		ORDER BY b.tanggal_kadaluarsa ASC
-	`
+
+	var query string
+
+	// Use the reliable IsPostgreSQL() helper function
+	log.Printf("[BATCH REPO] Database driver: CurrentDriver=%s, IsPostgreSQL=%v", database.CurrentDriver, database.IsPostgreSQL())
+
+	// Check if using PostgreSQL or SQLite using the helper function
+	if database.IsPostgreSQL() {
+		// PostgreSQL syntax - use DATE subtraction
+		query = `
+			SELECT
+				b.id, b.produk_id, b.qty, b.qty_tersisa, b.tanggal_restok,
+				b.masa_simpan_hari, b.tanggal_kadaluarsa, b.status,
+				b.supplier, b.keterangan, b.created_at, b.updated_at,
+				p.hari_pemberitahuan_kadaluarsa,
+				p.nama as produk_nama,
+				(DATE(b.tanggal_kadaluarsa) - CURRENT_DATE) as days_diff
+			FROM batch b
+			INNER JOIN produk p ON b.produk_id = p.id
+			WHERE b.qty_tersisa > 0
+			  AND (DATE(b.tanggal_kadaluarsa) - CURRENT_DATE) <= p.hari_pemberitahuan_kadaluarsa
+			ORDER BY b.tanggal_kadaluarsa ASC
+		`
+	} else {
+		// SQLite syntax - use julianday
+		query = `
+			SELECT
+				b.id, b.produk_id, b.qty, b.qty_tersisa, b.tanggal_restok,
+				b.masa_simpan_hari, b.tanggal_kadaluarsa, b.status,
+				b.supplier, b.keterangan, b.created_at, b.updated_at,
+				p.hari_pemberitahuan_kadaluarsa,
+				p.nama as produk_nama,
+				CAST(julianday(b.tanggal_kadaluarsa) - julianday('now') AS INTEGER) as days_diff
+			FROM batch b
+			INNER JOIN produk p ON b.produk_id = p.id
+			WHERE b.qty_tersisa > 0
+			  AND julianday(b.tanggal_kadaluarsa) - julianday('now') <= p.hari_pemberitahuan_kadaluarsa
+			ORDER BY b.tanggal_kadaluarsa ASC
+		`
+	}
 
 	rows, err := r.db.Query(query)
 	if err != nil {
@@ -440,13 +466,27 @@ func (r *BatchRepository) UpdateBatchShelfLifeForProduct(produkID int, newMasaSi
 	// SQL to update all batches for this product:
 	// 1. Update masa_simpan_hari to new value
 	// 2. Recalculate tanggal_kadaluarsa = tanggal_restok + new masa_simpan_hari
-	query := `
-		UPDATE batch
-		SET masa_simpan_hari = ?,
-		    tanggal_kadaluarsa = datetime(tanggal_restok, '+' || ? || ' days'),
-		    updated_at = CURRENT_TIMESTAMP
-		WHERE produk_id = ? AND qty_tersisa > 0
-	`
+
+	var query string
+	if database.IsPostgreSQL() {
+		// PostgreSQL syntax - use helper function for reliable detection
+		query = `
+			UPDATE batch
+			SET masa_simpan_hari = $1,
+			    tanggal_kadaluarsa = tanggal_restok + ($2 || ' days')::INTERVAL,
+			    updated_at = CURRENT_TIMESTAMP
+			WHERE produk_id = $3 AND qty_tersisa > 0
+		`
+	} else {
+		// SQLite syntax
+		query = `
+			UPDATE batch
+			SET masa_simpan_hari = ?,
+			    tanggal_kadaluarsa = datetime(tanggal_restok, '+' || ? || ' days'),
+			    updated_at = CURRENT_TIMESTAMP
+			WHERE produk_id = ? AND qty_tersisa > 0
+		`
+	}
 
 	result, err := r.db.Exec(query, newMasaSimpanHari, newMasaSimpanHari, produkID)
 	if err != nil {

@@ -13,6 +13,7 @@ type StaffReportService struct {
 	transaksiRepo *repository.TransaksiRepository
 	userRepo      *repository.UserRepository
 	produkRepo    *repository.ProdukRepository
+	returnRepo    *repository.ReturnRepository
 }
 
 // NewStaffReportService creates a new staff report service
@@ -21,6 +22,7 @@ func NewStaffReportService() *StaffReportService {
 		transaksiRepo: repository.NewTransaksiRepository(),
 		userRepo:      repository.NewUserRepository(),
 		produkRepo:    repository.NewProdukRepository(),
+		returnRepo:    repository.NewReturnRepository(),
 	}
 }
 
@@ -86,6 +88,21 @@ func (s *StaffReportService) GetStaffReport(staffID int, startDate, endDate time
 		}
 	}
 
+	// Get refund/return data for this staff
+	totalRefund, err := s.returnRepo.GetTotalRefundByStaffAndDateRange(staffID, startDate, endDate)
+	if err != nil {
+		// Log warning but continue - refund data is optional
+		fmt.Printf("Warning: Failed to get refund data for staff %d: %v\n", staffID, err)
+		totalRefund = 0
+	}
+
+	returnCount, err := s.returnRepo.GetReturnCountByStaffAndDateRange(staffID, startDate, endDate)
+	if err != nil {
+		// Log warning but continue - return count is optional
+		fmt.Printf("Warning: Failed to get return count for staff %d: %v\n", staffID, err)
+		returnCount = 0
+	}
+
 	report := &models.StaffReport{
 		StaffID:          staffID,
 		NamaStaff:        staff.NamaLengkap,
@@ -93,6 +110,8 @@ func (s *StaffReportService) GetStaffReport(staffID int, startDate, endDate time
 		TotalPenjualan:   totalPenjualan,
 		TotalProfit:      totalProfit,
 		TotalItemTerjual: totalItemTerjual,
+		TotalRefund:      totalRefund,      // Total refund amount (based on harga_beli)
+		TotalReturnCount: returnCount,      // Total number of return transactions
 		PeriodeMulai:     startDate,
 		PeriodeSelesai:   endDate,
 	}
@@ -130,8 +149,8 @@ func (s *StaffReportService) GetStaffReportDetail(staffID int, startDate, endDat
 
 // GetAllStaffReports gets reports for all staff
 func (s *StaffReportService) GetAllStaffReports(startDate, endDate time.Time) ([]*models.StaffReport, error) {
-	// Get all staff
-	staffList, err := s.userRepo.GetAllStaff()
+	// Get all transaction staff (including admin and staff)
+	staffList, err := s.userRepo.GetAllTransactionStaff()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get staff list: %w", err)
 	}
@@ -263,11 +282,13 @@ func (s *StaffReportService) GetStaffHistoricalData(staffID int) (*models.StaffH
 
 // GetAllStaffReportsWithTrend gets all staff reports with trend for today vs yesterday
 func (s *StaffReportService) GetAllStaffReportsWithTrend() ([]*models.StaffReportWithTrend, error) {
-	// Get all staff
-	staffList, err := s.userRepo.GetAllStaff()
+	// Get all transaction staff (including admin and staff)
+	staffList, err := s.userRepo.GetAllTransactionStaff()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get staff list: %w", err)
 	}
+
+	fmt.Printf("[STAFF REPORT] Found %d transaction staff (admin + staff)\n", len(staffList))
 
 	today := time.Now()
 	startOfToday := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
@@ -276,6 +297,7 @@ func (s *StaffReportService) GetAllStaffReportsWithTrend() ([]*models.StaffRepor
 	var reports []*models.StaffReportWithTrend
 
 	for _, staff := range staffList {
+		fmt.Printf("[STAFF REPORT] Processing staff: %s (ID: %d, Role: %s)\n", staff.NamaLengkap, staff.ID, staff.Role)
 		report, err := s.GetStaffReportWithTrend(staff.ID, startOfToday, endOfToday)
 		if err != nil {
 			fmt.Printf("Warning: Failed to get trend report for staff %s: %v\n", staff.NamaLengkap, err)
@@ -284,6 +306,7 @@ func (s *StaffReportService) GetAllStaffReportsWithTrend() ([]*models.StaffRepor
 		reports = append(reports, report)
 	}
 
+	fmt.Printf("[STAFF REPORT] Completed processing %d staff reports\n", len(reports))
 	return reports, nil
 }
 
@@ -291,16 +314,16 @@ func (s *StaffReportService) GetAllStaffReportsWithTrend() ([]*models.StaffRepor
 func (s *StaffReportService) GetComprehensiveReport() (*models.ComprehensiveStaffReport, error) {
 	now := time.Now()
 
-	// Last 30 days
-	last30DaysStart := now.AddDate(0, 0, -30)
-	last30DaysEnd := now
+	// Last 30 days - start from beginning of day 30 days ago
+	last30DaysStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -30)
+	last30DaysEnd := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999999999, now.Location())
 
 	// Previous 30 days (for comparison)
-	prev30DaysStart := now.AddDate(0, 0, -60)
-	prev30DaysEnd := now.AddDate(0, 0, -31)
+	prev30DaysStart := last30DaysStart.AddDate(0, 0, -30)
+	prev30DaysEnd := last30DaysStart.Add(-time.Nanosecond)
 
-	// Get all staff
-	staffList, err := s.userRepo.GetAllStaff()
+	// Get all transaction staff (including admin and staff)
+	staffList, err := s.userRepo.GetAllTransactionStaff()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get staff list: %w", err)
 	}
@@ -466,13 +489,13 @@ func (s *StaffReportService) GetStaffShiftData(staffID int, startDate, endDate t
 func (s *StaffReportService) GetMonthlyComparisonTrend() (map[string]interface{}, error) {
 	now := time.Now()
 
-	// Current 30 days
-	current30DaysStart := now.AddDate(0, 0, -30)
-	current30DaysEnd := now
+	// Current 30 days - start from beginning of day 30 days ago to end of today
+	current30DaysStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -30)
+	current30DaysEnd := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999999999, now.Location())
 
 	// Previous 30 days
-	prev30DaysStart := now.AddDate(0, 0, -60)
-	prev30DaysEnd := now.AddDate(0, 0, -31)
+	prev30DaysStart := current30DaysStart.AddDate(0, 0, -30)
+	prev30DaysEnd := current30DaysStart.Add(-time.Nanosecond)
 
 	// Get all staff reports for current period
 	currentReports, err := s.GetAllStaffReports(current30DaysStart, current30DaysEnd)

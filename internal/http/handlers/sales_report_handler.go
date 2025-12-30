@@ -21,17 +21,20 @@ func (h *SalesReportHandler) GetComprehensive(c *gin.Context) {
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
 
-	startDate, err := time.Parse("2006-01-02", startDateStr)
+	// Parse dates in local timezone to match trend calculation functions
+	startDate, err := time.ParseInLocation("2006-01-02", startDateStr, time.Local)
 	if err != nil {
 		response.BadRequest(c, "Invalid start date format", err)
 		return
 	}
 
-	endDate, err := time.Parse("2006-01-02", endDateStr)
+	endDate, err := time.ParseInLocation("2006-01-02", endDateStr, time.Local)
 	if err != nil {
 		response.BadRequest(c, "Invalid end date format", err)
 		return
 	}
+	// Adjust endDate to include the entire last day (end of day)
+	endDate = endDate.Add(24*time.Hour - time.Nanosecond)
 
 	report, err := h.services.SalesReportService.GetComprehensiveSalesReport(startDate, endDate)
 	if err != nil {

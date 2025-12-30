@@ -19,3 +19,4 @@ export { salesReportAPI } from './sales-report';
 export { printerAPI } from './printer';
 export { hardwareAPI } from './hardware';
 export { settingsAPI } from './settings';
+export { syncAPI } from './sync';

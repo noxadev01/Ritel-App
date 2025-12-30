@@ -25,7 +25,7 @@ func (r *SettingsRepository) GetPoinSettings() (*models.PoinSettings, error) {
 	`
 
 	var settings models.PoinSettings
-	err := database.DB.QueryRow(query).Scan(
+	err := database.QueryRow(query).Scan(
 		&settings.ID,
 		&settings.PointValue,
 		&settings.MinExchange,
@@ -63,7 +63,7 @@ func (r *SettingsRepository) UpdatePoinSettings(settings *models.PoinSettings) e
 		WHERE id = 1
 	`
 
-	result, err := database.DB.Exec(query,
+	result, err := database.Exec(query,
 		settings.PointValue,
 		settings.MinExchange,
 		settings.MinTransactionForPoints,
@@ -116,7 +116,7 @@ func (r *SettingsRepository) createDefaultSettings() (*models.PoinSettings, erro
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := database.DB.Exec(query,
+	_, err := database.Exec(query,
 		defaultSettings.ID,
 		defaultSettings.PointValue,
 		defaultSettings.MinExchange,

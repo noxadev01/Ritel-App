@@ -1,0 +1,2 @@
+# command-line-arguments
+.\main.go:72:9: undefined: NewApp

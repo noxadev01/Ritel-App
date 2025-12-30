@@ -25,6 +25,7 @@ func NewPelangganService() *PelangganService {
 }
 
 // getLevelInfo returns tipe and diskon based on level
+// Semua level tidak ada diskon (diskon hanya dari poin)
 func getLevelInfo(level int) (string, int) {
 	switch level {
 	case 3:
@@ -62,7 +63,7 @@ func (s *PelangganService) CreatePelanggan(req *models.CreatePelangganRequest) (
 	}
 
 	// Get tipe and diskon based on level
-	tipe, _ := getLevelInfo(level)
+	tipe, diskonPersen := getLevelInfo(level)
 
 	// Create pelanggan model
 	pelanggan := &models.Pelanggan{
@@ -73,6 +74,7 @@ func (s *PelangganService) CreatePelanggan(req *models.CreatePelangganRequest) (
 		Level:          level,
 		Tipe:           tipe,
 		Poin:           req.Poin,
+		DiskonPersen:   diskonPersen,
 		TotalTransaksi: 0,
 		TotalBelanja:   0,
 		CreatedAt:      time.Now(),
@@ -364,12 +366,13 @@ func (s *PelangganService) CheckAndUpdateLevel(pelangganID int, currentPoin int)
 
 	// 4. UPDATE JIKA ADA PERUBAHAN LEVEL
 	if newLevel != oldLevel {
-		// Get tipe berdasarkan level
-		tipe, _ := getLevelInfo(newLevel)
+		// Get tipe dan diskon berdasarkan level
+		tipe, diskonPersen := getLevelInfo(newLevel)
 
-		// Update pelanggan dengan level baru
+		// Update pelanggan dengan level baru dan diskon baru
 		pelanggan.Level = newLevel
 		pelanggan.Tipe = tipe
+		pelanggan.DiskonPersen = diskonPersen
 
 		if err := s.pelangganRepo.Update(pelanggan); err != nil {
 			return fmt.Errorf("gagal update level pelanggan: %w", err)
@@ -378,11 +381,11 @@ func (s *PelangganService) CheckAndUpdateLevel(pelangganID int, currentPoin int)
 		// Log level change
 		levelNames := map[int]string{1: "Regular", 2: "Premium", 3: "Gold"}
 		if newLevel > oldLevel {
-			fmt.Printf("[PELANGGAN SERVICE] ✅ Customer %s UPGRADED from %s to %s (points: %d)\n",
-				pelanggan.Nama, levelNames[oldLevel], levelNames[newLevel], currentPoin)
+			fmt.Printf("[PELANGGAN SERVICE] ✅ Customer %s UPGRADED from %s to %s (points: %d, diskon: %d%%)\n",
+				pelanggan.Nama, levelNames[oldLevel], levelNames[newLevel], currentPoin, diskonPersen)
 		} else {
-			fmt.Printf("[PELANGGAN SERVICE] 🔄 Customer %s DOWNGRADED from %s to %s (points: %d)\n",
-				pelanggan.Nama, levelNames[oldLevel], levelNames[newLevel], currentPoin)
+			fmt.Printf("[PELANGGAN SERVICE] 🔄 Customer %s DOWNGRADED from %s to %s (points: %d, diskon: %d%%)\n",
+				pelanggan.Nama, levelNames[oldLevel], levelNames[newLevel], currentPoin, diskonPersen)
 		}
 	} else {
 		fmt.Printf("[PELANGGAN SERVICE] No level change needed - Level remains: %d\n", oldLevel)

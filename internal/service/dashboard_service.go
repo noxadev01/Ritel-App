@@ -170,6 +170,14 @@ func (s *DashboardService) GetStatistikBulanan() (*models.DashboardStatistikBula
 		vsBulanLalu = 100
 	}
 
+	// Pastikan Total Pendapatan dan Keuntungan Bersih tidak negatif (minimum 0)
+	if currentTotalPendapatan < 0 {
+		currentTotalPendapatan = 0
+	}
+	if currentKeuntunganBersih < 0 {
+		currentKeuntunganBersih = 0
+	}
+
 	return &models.DashboardStatistikBulanan{
 		TotalPendapatan:  currentTotalPendapatan,
 		TotalTransaksi:   currentTotalTransaksi,

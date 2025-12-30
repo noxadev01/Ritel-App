@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLeaf, faBell, faSignOutAlt, faBars, faCalendarAlt, faTimes, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../../contexts/AuthContext';
+import SyncStatus from '../common/SyncStatus';
+import { isWebMode } from '../../utils/environment';
 
 // Komponen Modal Logout
 const LogoutModal = ({
@@ -219,6 +221,9 @@ const Header = ({
                             <FontAwesomeIcon icon={faCalendarAlt} className="text-primary" />
                             <span className="text-sm font-medium text-gray-700">{getCurrentDate()}</span>
                         </div>
+
+                        {/* Sync Status Indicator - Only show in desktop mode */}
+                        {!isWebMode() && <SyncStatus compact={true} />}
 
                         <div className="relative">
                             <button

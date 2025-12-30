@@ -24,7 +24,7 @@ func (r *ReturnRepository) Create(returnData *models.Return) error {
 			replacement_product_id, refund_amount, refund_method, refund_status, notes,
 			created_at, updated_at
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id
 	`
 
 	var replacementProductID interface{}
@@ -34,7 +34,8 @@ func (r *ReturnRepository) Create(returnData *models.Return) error {
 		replacementProductID = nil
 	}
 
-	result, err := database.DB.Exec(query,
+	var id int64
+	err := database.QueryRow(query,
 		returnData.TransaksiID,
 		returnData.NoTransaksi,
 		returnData.ReturnDate,
@@ -45,14 +46,9 @@ func (r *ReturnRepository) Create(returnData *models.Return) error {
 		returnData.RefundMethod,
 		returnData.RefundStatus,
 		returnData.Notes,
-	)
+	).Scan(&id)
 	if err != nil {
 		return fmt.Errorf("failed to create return: %w", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get last insert id: %w", err)
 	}
 
 	returnData.ID = int(id)
@@ -63,21 +59,17 @@ func (r *ReturnRepository) Create(returnData *models.Return) error {
 func (r *ReturnRepository) CreateReturnItem(item *models.ReturnItem) error {
 	query := `
 		INSERT INTO return_items (return_id, product_id, quantity, created_at)
-		VALUES (?, ?, ?, datetime('now'))
+		VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id
 	`
 
-	result, err := database.DB.Exec(query,
+	var id int64
+	err := database.QueryRow(query,
 		item.ReturnID,
 		item.ProductID,
 		item.Quantity,
-	)
+	).Scan(&id)
 	if err != nil {
 		return fmt.Errorf("failed to create return item: %w", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get last insert id: %w", err)
 	}
 
 	item.ID = int(id)
@@ -94,7 +86,7 @@ func (r *ReturnRepository) GetReturnedQuantity(transaksiID int, productID int) (
 	`
 
 	var totalReturned int
-	err := database.DB.QueryRow(query, transaksiID, productID).Scan(&totalReturned)
+	err := database.QueryRow(query, transaksiID, productID).Scan(&totalReturned)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get returned quantity: %w", err)
 	}
@@ -105,7 +97,7 @@ func (r *ReturnRepository) GetReturnedQuantity(transaksiID int, productID int) (
 // UpdateTransactionStatus updates the status of a transaction
 func (r *ReturnRepository) UpdateTransactionStatus(transaksiID int, status string) error {
 	query := `UPDATE transaksi SET status = ? WHERE id = ?`
-	_, err := database.DB.Exec(query, status, transaksiID)
+	_, err := database.Exec(query, status, transaksiID)
 	if err != nil {
 		return fmt.Errorf("failed to update transaction status: %w", err)
 	}
@@ -114,8 +106,8 @@ func (r *ReturnRepository) UpdateTransactionStatus(transaksiID int, status strin
 
 // UpdateRefundStatus updates the refund status of a return
 func (r *ReturnRepository) UpdateRefundStatus(returnID int, status string) error {
-	query := `UPDATE returns SET refund_status = ?, updated_at = datetime('now') WHERE id = ?`
-	_, err := database.DB.Exec(query, status, returnID)
+	query := `UPDATE returns SET refund_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	_, err := database.Exec(query, status, returnID)
 	if err != nil {
 		return fmt.Errorf("failed to update refund status: %w", err)
 	}
@@ -131,7 +123,7 @@ func (r *ReturnRepository) GetAllReturnedItemsByTransaksi(transaksiID int) ([]*m
 		WHERE r.transaksi_id = ?
 	`
 
-	rows, err := database.DB.Query(query, transaksiID)
+	rows, err := database.Query(query, transaksiID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query returned items: %w", err)
 	}
@@ -176,7 +168,7 @@ func (r *ReturnRepository) GetAll() ([]*models.Return, error) {
 		ORDER BY return_date DESC
 	`
 
-	rows, err := database.DB.Query(query)
+	rows, err := database.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query returns: %w", err)
 	}
@@ -241,7 +233,7 @@ func (r *ReturnRepository) GetByID(id int) (*models.Return, error) {
 	var returnDateStr string
 	var createdAtStr, updatedAtStr string
 
-	err := database.DB.QueryRow(query, id).Scan(
+	err := database.QueryRow(query, id).Scan(
 		&ret.ID,
 		&ret.TransaksiID,
 		&ret.NoTransaksi,
@@ -291,7 +283,7 @@ func (r *ReturnRepository) GetReturnItemsByReturnID(returnID int) ([]*models.Ret
 		WHERE ri.return_id = ?
 	`
 
-	rows, err := database.DB.Query(query, returnID)
+	rows, err := database.Query(query, returnID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query return items: %w", err)
 	}
@@ -324,7 +316,7 @@ func (r *ReturnRepository) GetTotalRefundByDateRange(startDate, endDate time.Tim
 	`
 
 	var totalRefund int
-	err := database.DB.QueryRow(query, startDate, endDate).Scan(&totalRefund)
+	err := database.QueryRow(query, startDate, endDate).Scan(&totalRefund)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get total refund: %w", err)
 	}
@@ -346,7 +338,7 @@ func (r *ReturnRepository) GetReturnsByDateRange(startDate, endDate time.Time) (
 		ORDER BY return_date DESC
 	`
 
-	rows, err := database.DB.Query(query, startDate, endDate)
+	rows, err := database.Query(query, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query returns by date range: %w", err)
 	}
@@ -396,4 +388,100 @@ func (r *ReturnRepository) GetReturnsByDateRange(startDate, endDate time.Time) (
 	}
 
 	return returns, nil
+}
+
+// GetTotalRefundByStaffAndDateRange calculates total refund amount for a staff in date range
+func (r *ReturnRepository) GetTotalRefundByStaffAndDateRange(staffID int, startDate, endDate time.Time) (int, error) {
+	query := `
+		SELECT COALESCE(SUM(r.refund_amount), 0)
+		FROM returns r
+		INNER JOIN transaksi t ON r.transaksi_id = t.id
+		WHERE t.staff_id = ?
+		AND r.return_date >= ?
+		AND r.return_date <= ?
+	`
+
+	// Debug logging
+	fmt.Printf("[REFUND QUERY] staffID: %d, startDate: %v, endDate: %v\n", staffID, startDate, endDate)
+
+	var totalRefund int
+	err := database.QueryRow(query, staffID, startDate, endDate).Scan(&totalRefund)
+	if err != nil {
+		fmt.Printf("[REFUND QUERY ERROR] %v\n", err)
+		return 0, fmt.Errorf("failed to get total refund by staff: %w", err)
+	}
+
+	fmt.Printf("[REFUND QUERY RESULT] totalRefund: %d\n", totalRefund)
+	return totalRefund, nil
+}
+
+// GetReturnCountByStaffAndDateRange counts total returns for a staff in date range
+func (r *ReturnRepository) GetReturnCountByStaffAndDateRange(staffID int, startDate, endDate time.Time) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM returns r
+		INNER JOIN transaksi t ON r.transaksi_id = t.id
+		WHERE t.staff_id = ?
+		AND r.return_date >= ?
+		AND r.return_date <= ?
+	`
+
+	// Debug logging
+	fmt.Printf("[RETURN COUNT QUERY] staffID: %d, startDate: %v, endDate: %v\n", staffID, startDate, endDate)
+
+	var count int
+	err := database.QueryRow(query, staffID, startDate, endDate).Scan(&count)
+	if err != nil {
+		fmt.Printf("[RETURN COUNT QUERY ERROR] %v\n", err)
+		return 0, fmt.Errorf("failed to get return count by staff: %w", err)
+	}
+
+	fmt.Printf("[RETURN COUNT QUERY RESULT] count: %d\n", count)
+	return count, nil
+}
+
+// GetTotalRefundAllStaff calculates total refund amount for ALL staff in date range
+func (r *ReturnRepository) GetTotalRefundAllStaff(startDate, endDate time.Time) (int, error) {
+	query := `
+		SELECT COALESCE(SUM(refund_amount), 0)
+		FROM returns
+		WHERE return_date >= ?
+		AND return_date <= ?
+	`
+
+	// Debug logging
+	fmt.Printf("[ALL STAFF REFUND QUERY] startDate: %v, endDate: %v\n", startDate, endDate)
+
+	var totalRefund int
+	err := database.QueryRow(query, startDate, endDate).Scan(&totalRefund)
+	if err != nil {
+		fmt.Printf("[ALL STAFF REFUND QUERY ERROR] %v\n", err)
+		return 0, fmt.Errorf("failed to get total refund for all staff: %w", err)
+	}
+
+	fmt.Printf("[ALL STAFF REFUND QUERY RESULT] totalRefund: %d\n", totalRefund)
+	return totalRefund, nil
+}
+
+// GetReturnCountAllStaff counts total returns for ALL staff in date range
+func (r *ReturnRepository) GetReturnCountAllStaff(startDate, endDate time.Time) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM returns
+		WHERE return_date >= ?
+		AND return_date <= ?
+	`
+
+	// Debug logging
+	fmt.Printf("[ALL STAFF RETURN COUNT QUERY] startDate: %v, endDate: %v\n", startDate, endDate)
+
+	var count int
+	err := database.QueryRow(query, startDate, endDate).Scan(&count)
+	if err != nil {
+		fmt.Printf("[ALL STAFF RETURN COUNT QUERY ERROR] %v\n", err)
+		return 0, fmt.Errorf("failed to get return count for all staff: %w", err)
+	}
+
+	fmt.Printf("[ALL STAFF RETURN COUNT QUERY RESULT] count: %d\n", count)
+	return count, nil
 }

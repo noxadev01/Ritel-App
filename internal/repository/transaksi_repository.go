@@ -43,7 +43,7 @@ func (r *TransaksiRepository) GenerateNomorTransaksi() (string, error) {
 		// Check if this number already exists
 		var exists int
 		query := `SELECT COUNT(*) FROM transaksi WHERE nomor_transaksi = ?`
-		err = r.db.QueryRow(query, nomorTransaksi).Scan(&exists)
+		err = database.QueryRow(query, nomorTransaksi).Scan(&exists)
 		if err != nil {
 			return "", fmt.Errorf("failed to check transaction number uniqueness: %w", err)
 		}
@@ -105,17 +105,17 @@ func (r *TransaksiRepository) Create(req *models.CreateTransaksiRequest) (*model
 		return nil, fmt.Errorf("pembayaran tidak mencukupi")
 	}
 
-	// Calculate discount breakdown
-	diskonPromo := 0
-	diskonPelanggan := 0
-	// req.Diskon now contains total discount, we'll break it down in service layer
+	// Use discount breakdown from service layer
+	diskonPromo := req.DiskonPromo
+	diskonPelanggan := req.DiskonPelanggan
 
 	// Insert transaksi header
 	query := `INSERT INTO transaksi (
 		nomor_transaksi, pelanggan_id, pelanggan_nama, pelanggan_telp,
 		subtotal, diskon_promo, diskon_pelanggan, poin_ditukar, diskon_poin, diskon, total, total_bayar, kembalian,
 		status, catatan, kasir, staff_id, staff_nama, created_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+	query = database.TranslateQuery(query)
 
 	// Calculate diskon_poin from poin_ditukar (will be set in service layer)
 	poinDitukar := req.PoinDitukar
@@ -123,18 +123,14 @@ func (r *TransaksiRepository) Create(req *models.CreateTransaksiRequest) (*model
 
 	now := time.Now()
 
-	result, err := tx.Exec(query,
+	var transaksiID int64
+	err = tx.QueryRow(query,
 		nomorTransaksi, req.PelangganID, req.PelangganNama, req.PelangganTelp,
 		subtotal, diskonPromo, diskonPelanggan, poinDitukar, diskonPoin, req.Diskon, total, totalBayar, kembalian,
 		"selesai", req.Catatan, req.Kasir, req.StaffID, req.StaffNama, now,
-	)
+	).Scan(&transaksiID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert transaction: %w", err)
-	}
-
-	transaksiID, err := result.LastInsertId()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get transaction ID: %w", err)
 	}
 
 	// Insert transaction items
@@ -142,11 +138,13 @@ func (r *TransaksiRepository) Create(req *models.CreateTransaksiRequest) (*model
 		transaksi_id, produk_id, produk_sku, produk_nama,
 		produk_kategori, harga_satuan, jumlah, beratgram, subtotal, created_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	itemQuery = database.TranslateQuery(itemQuery)
 
 	for _, item := range req.Items {
 		// Get product details
 		var produk models.Produk
-		err := tx.QueryRow(`SELECT sku, nama, kategori, stok FROM produk WHERE id = ?`, item.ProdukID).
+		productQuery := database.TranslateQuery(`SELECT sku, nama, kategori, stok FROM produk WHERE id = ?`)
+		err := tx.QueryRow(productQuery, item.ProdukID).
 			Scan(&produk.SKU, &produk.Nama, &produk.Kategori, &produk.Stok)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get product: %w", err)
@@ -193,7 +191,8 @@ func (r *TransaksiRepository) Create(req *models.CreateTransaksiRequest) (*model
 		}
 
 		// Update product stock
-		_, err = tx.Exec(`UPDATE produk SET stok = stok - ? WHERE id = ?`, stockToDeduct, item.ProdukID)
+		updateStockQuery := database.TranslateQuery(`UPDATE produk SET stok = stok - ? WHERE id = ?`)
+		_, err = tx.Exec(updateStockQuery, stockToDeduct, item.ProdukID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to update product stock: %w", err)
 		}
@@ -205,6 +204,7 @@ func (r *TransaksiRepository) Create(req *models.CreateTransaksiRequest) (*model
 			WHERE produk_id = ? AND qty_tersisa > 0
 			ORDER BY tanggal_restok ASC, created_at ASC
 		`
+		batchQuery = database.TranslateQuery(batchQuery)
 		rows, err := tx.Query(batchQuery, item.ProdukID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get batches: %w", err)
@@ -226,7 +226,8 @@ func (r *TransaksiRepository) Create(req *models.CreateTransaksiRequest) (*model
 			}
 
 			// Update batch quantity
-			_, err = tx.Exec(`UPDATE batch SET qty_tersisa = qty_tersisa - ? WHERE id = ?`, qtyFromThisBatch, batchID)
+			updateBatchQuery := database.TranslateQuery(`UPDATE batch SET qty_tersisa = qty_tersisa - ? WHERE id = ?`)
+			_, err = tx.Exec(updateBatchQuery, qtyFromThisBatch, batchID)
 			if err != nil {
 				return nil, fmt.Errorf("failed to update batch %s: %w", batchID, err)
 			}
@@ -238,6 +239,7 @@ func (r *TransaksiRepository) Create(req *models.CreateTransaksiRequest) (*model
 
 	// Insert payments
 	paymentQuery := `INSERT INTO pembayaran (transaksi_id, metode, jumlah, referensi, created_at) VALUES (?, ?, ?, ?, ?)`
+	paymentQuery = database.TranslateQuery(paymentQuery)
 	for _, payment := range req.Pembayaran {
 		_, err = tx.Exec(paymentQuery, transaksiID, payment.Metode, payment.Jumlah, payment.Referensi, now)
 		if err != nil {
@@ -269,7 +271,7 @@ func (r *TransaksiRepository) GetByNomorTransaksi(nomorTransaksi string) (*model
 	FROM transaksi WHERE nomor_transaksi = ?`
 
 	transaksi := &models.Transaksi{}
-	err := r.db.QueryRow(query, nomorTransaksi).Scan(
+	err := database.QueryRow(query, nomorTransaksi).Scan(
 		&transaksi.ID, &transaksi.NomorTransaksi, &transaksi.Tanggal,
 		&transaksi.PelangganID, &transaksi.PelangganNama, &transaksi.PelangganTelp,
 		&transaksi.Subtotal, &transaksi.DiskonPromo, &transaksi.DiskonPelanggan, &transaksi.PoinDitukar, &transaksi.DiskonPoin, &transaksi.Diskon, &transaksi.Total,
@@ -290,7 +292,7 @@ func (r *TransaksiRepository) GetByNomorTransaksi(nomorTransaksi string) (*model
 		produk_kategori, harga_satuan, jumlah, beratgram, subtotal, created_at
 	FROM transaksi_item WHERE transaksi_id = ?`
 
-	rows, err := r.db.Query(itemQuery, transaksi.ID)
+	rows, err := database.Query(itemQuery, transaksi.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction items: %w", err)
 	}
@@ -324,7 +326,7 @@ func (r *TransaksiRepository) GetByNomorTransaksi(nomorTransaksi string) (*model
 	paymentQuery := `SELECT id, transaksi_id, metode, jumlah, referensi, created_at
 		FROM pembayaran WHERE transaksi_id = ?`
 
-	paymentRows, err := r.db.Query(paymentQuery, transaksi.ID)
+	paymentRows, err := database.Query(paymentQuery, transaksi.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get payments: %w", err)
 	}
@@ -366,7 +368,7 @@ func (r *TransaksiRepository) GetByID(id int) (*models.TransaksiDetail, error) {
 	FROM transaksi WHERE id = ?`
 
 	transaksi := &models.Transaksi{}
-	err := r.db.QueryRow(query, id).Scan(
+	err := database.QueryRow(query, id).Scan(
 		&transaksi.ID, &transaksi.NomorTransaksi, &transaksi.Tanggal,
 		&transaksi.PelangganID, &transaksi.PelangganNama, &transaksi.PelangganTelp,
 		&transaksi.Subtotal, &transaksi.DiskonPromo, &transaksi.DiskonPelanggan, &transaksi.PoinDitukar, &transaksi.DiskonPoin, &transaksi.Diskon, &transaksi.Total,
@@ -385,7 +387,7 @@ func (r *TransaksiRepository) GetByID(id int) (*models.TransaksiDetail, error) {
 		produk_kategori, harga_satuan, jumlah, beratgram, subtotal, created_at
 	FROM transaksi_item WHERE transaksi_id = ?`
 
-	rows, err := r.db.Query(itemQuery, id)
+	rows, err := database.Query(itemQuery, id)
 	if err != nil {
 		fmt.Printf("[ERROR] Failed to query transaction items: %v\n", err)
 		return nil, fmt.Errorf("failed to get transaction items: %w", err)
@@ -425,7 +427,7 @@ func (r *TransaksiRepository) GetByID(id int) (*models.TransaksiDetail, error) {
 	paymentQuery := `SELECT id, transaksi_id, metode, jumlah, referensi, created_at
 		FROM pembayaran WHERE transaksi_id = ?`
 
-	paymentRows, err := r.db.Query(paymentQuery, id)
+	paymentRows, err := database.Query(paymentQuery, id)
 	if err != nil {
 		fmt.Printf("[ERROR] Failed to query payments: %v\n", err)
 		return nil, fmt.Errorf("failed to get payments: %w", err)
@@ -473,7 +475,7 @@ func (r *TransaksiRepository) GetAll(limit, offset int) ([]*models.Transaksi, er
 	ORDER BY tanggal DESC
 	LIMIT ? OFFSET ?`
 
-	rows, err := r.db.Query(query, limit, offset)
+	rows, err := database.Query(query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transactions: %w", err)
 	}
@@ -533,7 +535,7 @@ func (r *TransaksiRepository) GetByDateRange(startDate, endDate time.Time) ([]*m
 	WHERE created_at >= ? AND created_at < ?
 	ORDER BY created_at DESC`
 
-	rows, err := r.db.Query(query, startDate, endDate)
+	rows, err := database.Query(query, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transactions by date range: %w", err)
 	}
@@ -589,9 +591,9 @@ func (r *TransaksiRepository) GetTodayStats() (totalTransaksi int, totalPendapat
 		COALESCE(SUM(total), 0) as total_pendapatan,
 		COALESCE(SUM((SELECT SUM(jumlah) FROM transaksi_item WHERE transaksi_id = transaksi.id)), 0) as total_item
 	FROM transaksi
-	WHERE DATE(tanggal) = DATE('now')`
+	WHERE DATE(tanggal) = CURRENT_DATE`
 
-	err = r.db.QueryRow(query).Scan(&totalTransaksi, &totalPendapatan, &totalItem)
+	err = database.QueryRow(query).Scan(&totalTransaksi, &totalPendapatan, &totalItem)
 	return
 }
 
@@ -609,7 +611,7 @@ func (r *TransaksiRepository) GetByPelangganID(pelangganID int) ([]*models.Trans
     WHERE pelanggan_id = ?
     ORDER BY tanggal DESC`
 
-	rows, err := r.db.Query(query, pelangganID)
+	rows, err := database.Query(query, pelangganID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transactions by pelanggan: %w", err)
 	}
@@ -674,7 +676,7 @@ func (r *TransaksiRepository) GetStatsByPelangganID(pelangganID int) (*models.Pe
     WHERE pelanggan_id = ? AND status = 'selesai'`
 
 	var stats models.PelangganStats
-	err := r.db.QueryRow(query, pelangganID).Scan(
+	err := database.QueryRow(query, pelangganID).Scan(
 		&stats.TotalTransaksi,
 		&stats.TotalBelanja,
 		&stats.RataRataBelanja,
@@ -699,7 +701,7 @@ func (r *TransaksiRepository) GetByStaffIDAndDateRange(staffID int, startDate, e
 		ORDER BY tanggal DESC
 	`
 
-	rows, err := r.db.Query(query, staffID, startDate, endDate)
+	rows, err := database.Query(query, staffID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query transactions: %w", err)
 	}
@@ -770,7 +772,7 @@ func (r *TransaksiRepository) GetDailyBreakdownByStaffID(staffID int, startDate,
 		ORDER BY DATE(tanggal) ASC
 	`
 
-	rows, err := r.db.Query(query, staffID, startDate, endDate)
+	rows, err := database.Query(query, staffID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query daily breakdown: %w", err)
 	}
@@ -807,7 +809,7 @@ func (r *TransaksiRepository) GetTopProductLast30Days() (string, error) {
 		SELECT ti.produk_nama, SUM(ti.jumlah) as total_terjual
 		FROM transaksi_item ti
 		JOIN transaksi t ON ti.transaksi_id = t.id
-		WHERE DATE(t.tanggal) >= DATE('now', '-30 days')
+		WHERE t.tanggal >= CURRENT_DATE - INTERVAL '30 days'
 		GROUP BY ti.produk_nama
 		ORDER BY total_terjual DESC
 		LIMIT 1
@@ -816,7 +818,7 @@ func (r *TransaksiRepository) GetTopProductLast30Days() (string, error) {
 	var produkNama string
 	var totalTerjual int
 
-	err := r.db.QueryRow(query).Scan(&produkNama, &totalTerjual)
+	err := database.QueryRow(query).Scan(&produkNama, &totalTerjual)
 	if err != nil {
 		// If no product found, return dash
 		return "-", nil
@@ -835,7 +837,7 @@ func (r *TransaksiRepository) GetItemCountsByDateForStaff(staffID int, startDate
 		GROUP BY DATE(t.tanggal)
 	`
 
-	rows, err := r.db.Query(query, staffID, startDate, endDate)
+	rows, err := database.Query(query, staffID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query item counts: %w", err)
 	}
@@ -941,7 +943,7 @@ func (r *TransaksiRepository) GetTransactionCountsByDateForStaff(staffID int, st
 		GROUP BY DATE(tanggal)
 	`
 
-	rows, err := r.db.Query(query, staffID, startDate, endDate)
+	rows, err := database.Query(query, staffID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query transaction counts: %w", err)
 	}
@@ -972,7 +974,7 @@ func (r *TransaksiRepository) GetTotalProductsSoldByDateRange(startDate, endDate
 	WHERE t.created_at BETWEEN ? AND ?`
 
 	var totalProducts int
-	err := r.db.QueryRow(query, startDate, endDate).Scan(&totalProducts)
+	err := database.QueryRow(query, startDate, endDate).Scan(&totalProducts)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get total products sold: %w", err)
 	}
@@ -991,7 +993,7 @@ func (r *TransaksiRepository) GetPaymentMethodBreakdownByDateRange(startDate, en
 	WHERE t.created_at BETWEEN ? AND ?
 	GROUP BY p.metode`
 
-	rows, err := r.db.Query(query, startDate, endDate)
+	rows, err := database.Query(query, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get payment method breakdown: %w", err)
 	}
@@ -1021,7 +1023,7 @@ func (r *TransaksiRepository) GetTransactionOmsetByPaymentMethod(startDate, endD
 	WHERE t.created_at BETWEEN ? AND ?
 	GROUP BY p.metode`
 
-	rows, err := r.db.Query(query, startDate, endDate)
+	rows, err := database.Query(query, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction omset by payment method: %w", err)
 	}
@@ -1054,57 +1056,57 @@ func (r *TransaksiRepository) GetSalesGroupedByPeriod(startDate, endDate time.Ti
 	case "hari":
 		// Group by day of the week for the last 7 days
 		query = `
-            SELECT 
-                strftime('%w', created_at) as day_key,
-                CASE strftime('%w', created_at)
-                    WHEN '0' THEN 'Minggu'
-                    WHEN '1' THEN 'Senin'
-                    WHEN '2' THEN 'Selasa'
-                    WHEN '3' THEN 'Rabu'
-                    WHEN '4' THEN 'Kamis'
-                    WHEN '5' THEN 'Jumat'
-                    WHEN '6' THEN 'Sabtu'
+            SELECT
+                EXTRACT(DOW FROM created_at)::text as day_key,
+                CASE EXTRACT(DOW FROM created_at)
+                    WHEN 0 THEN 'Minggu'
+                    WHEN 1 THEN 'Senin'
+                    WHEN 2 THEN 'Selasa'
+                    WHEN 3 THEN 'Rabu'
+                    WHEN 4 THEN 'Kamis'
+                    WHEN 5 THEN 'Jumat'
+                    WHEN 6 THEN 'Sabtu'
                 END as label,
                 SUM(total) as revenue,
                 COUNT(*) as transactions
             FROM transaksi
-            WHERE created_at BETWEEN ? AND ?
+            WHERE created_at BETWEEN $1 AND $2
             GROUP BY day_key, label
             ORDER BY day_key;
         `
 	case "minggu":
 		// Group by week number for the last 4 weeks
 		query = `
-            SELECT 
-                'Minggu ' || strftime('%W', created_at) as label,
+            SELECT
+                'Minggu ' || EXTRACT(WEEK FROM created_at)::text as label,
                 SUM(total) as revenue,
                 COUNT(*) as transactions
             FROM transaksi
-            WHERE created_at BETWEEN ? AND ?
+            WHERE created_at BETWEEN $1 AND $2
             GROUP BY label
             ORDER BY label;
         `
 	case "bulan":
 		// Group by month for the last 6 months
 		query = `
-            SELECT 
-                strftime('%Y-%m', created_at) as label,
+            SELECT
+                TO_CHAR(created_at, 'YYYY-MM') as label,
                 SUM(total) as revenue,
                 COUNT(*) as transactions
             FROM transaksi
-            WHERE created_at BETWEEN ? AND ?
+            WHERE created_at BETWEEN $1 AND $2
             GROUP BY label
             ORDER BY label;
         `
 	default: // Default to hourly
 		// Group by hour of the day (0-23)
 		query = `
-            SELECT 
-                strftime('%H', created_at) as label,
+            SELECT
+                TO_CHAR(created_at, 'HH24') as label,
                 SUM(total) as revenue,
                 COUNT(*) as transactions
             FROM transaksi
-            WHERE created_at BETWEEN ? AND ?
+            WHERE created_at BETWEEN $1 AND $2
             GROUP BY label
             ORDER BY label;
         `
@@ -1112,7 +1114,7 @@ func (r *TransaksiRepository) GetSalesGroupedByPeriod(startDate, endDate time.Ti
 
 	args = []interface{}{startDate, endDate}
 
-	rows, err := r.db.Query(query, args...)
+	rows, err := database.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}

@@ -21,6 +21,13 @@ type DualDatabaseConfig struct {
 	SQLite      DatabaseConfig
 }
 
+// SyncModeConfig holds configuration for offline-first sync mode
+type SyncModeConfig struct {
+	Enabled     bool
+	SQLiteDSN   string // Local SQLite database
+	PostgresDSN string // Remote PostgreSQL server
+}
+
 var (
 	// EnvFileLoaded indicates whether .env file was successfully loaded
 	EnvFileLoaded bool
@@ -136,6 +143,35 @@ func MaskPassword(dsn string) string {
 		}
 	}
 	return dsn
+}
+
+// GetSyncModeConfig returns configuration for sync mode (offline-first with auto-sync)
+func GetSyncModeConfig() SyncModeConfig {
+	mode := os.Getenv("SYNC_MODE")
+
+	if mode != "enabled" && mode != "true" {
+		return SyncModeConfig{
+			Enabled: false,
+		}
+	}
+
+	// Get SQLite DSN for local storage
+	sqliteDSN := os.Getenv("SYNC_SQLITE_DSN")
+	if sqliteDSN == "" {
+		sqliteDSN = "./ritel.db"
+	}
+
+	// Get PostgreSQL DSN for remote server
+	postgresDSN := os.Getenv("SYNC_POSTGRES_DSN")
+	if postgresDSN == "" {
+		postgresDSN = "host=localhost port=5432 user=ritel password=ritel123 dbname=ritel_db sslmode=disable"
+	}
+
+	return SyncModeConfig{
+		Enabled:     true,
+		SQLiteDSN:   sqliteDSN,
+		PostgresDSN: postgresDSN,
+	}
 }
 
 // GetDualDatabaseConfig returns configuration for dual database mode

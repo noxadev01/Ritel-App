@@ -202,25 +202,55 @@ const LaporanStaff = ({ formatRupiah, userName = "Admin" }) => {
     // Transform backend data to UI format with real trend data
     const transformDataForUI = async (reportsWithTrend, staff) => {
         // Calculate totals from current and previous period reports
-        const totals = reportsWithTrend.reduce((acc, reportTrend) => ({
-            totalPendapatan: acc.totalPendapatan + (reportTrend.current?.totalPenjualan || 0),
-            totalProfit: acc.totalProfit + (reportTrend.current?.totalProfit || 0),
-            totalTransaksi: acc.totalTransaksi + (reportTrend.current?.totalTransaksi || 0),
-            totalProdukTerjual: acc.totalProdukTerjual + (reportTrend.current?.totalItemTerjual || 0),
-            prevPendapatan: acc.prevPendapatan + (reportTrend.previous?.totalPenjualan || 0),
-            prevProfit: acc.prevProfit + (reportTrend.previous?.totalProfit || 0),
-            prevTransaksi: acc.prevTransaksi + (reportTrend.previous?.totalTransaksi || 0),
-            prevProdukTerjual: acc.prevProdukTerjual + (reportTrend.previous?.totalItemTerjual || 0)
-        }), {
+        console.log('[STAFF REPORTS] Total staff with reports:', reportsWithTrend.length);
+
+        const totals = reportsWithTrend.reduce((acc, reportTrend, index) => {
+            const currentRefund = reportTrend.current?.totalRefund || 0;
+            const currentReturnCount = reportTrend.current?.totalReturnCount || 0;
+            const prevRefund = reportTrend.previous?.totalRefund || 0;
+            const prevReturnCount = reportTrend.previous?.totalReturnCount || 0;
+
+            // Debug logging for ALL staff (not just those with refunds)
+            console.log(`[STAFF ${index + 1}] ${reportTrend.current?.namaStaff || 'Unknown'}`,
+                `| Current Refund: Rp ${currentRefund.toLocaleString()}`,
+                `| Return Count: ${currentReturnCount}`,
+                `| Prev Refund: Rp ${prevRefund.toLocaleString()}`);
+
+            return {
+                totalPendapatan: acc.totalPendapatan + (reportTrend.current?.totalPenjualan || 0),
+                totalProfit: acc.totalProfit + (reportTrend.current?.totalProfit || 0),
+                totalTransaksi: acc.totalTransaksi + (reportTrend.current?.totalTransaksi || 0),
+                totalProdukTerjual: acc.totalProdukTerjual + (reportTrend.current?.totalItemTerjual || 0),
+                totalRefund: acc.totalRefund + currentRefund,
+                totalReturnCount: acc.totalReturnCount + currentReturnCount,
+                prevPendapatan: acc.prevPendapatan + (reportTrend.previous?.totalPenjualan || 0),
+                prevProfit: acc.prevProfit + (reportTrend.previous?.totalProfit || 0),
+                prevTransaksi: acc.prevTransaksi + (reportTrend.previous?.totalTransaksi || 0),
+                prevProdukTerjual: acc.prevProdukTerjual + (reportTrend.previous?.totalItemTerjual || 0),
+                prevRefund: acc.prevRefund + prevRefund,
+                prevReturnCount: acc.prevReturnCount + prevReturnCount
+            };
+        }, {
             totalPendapatan: 0,
             totalProfit: 0,
             totalTransaksi: 0,
             totalProdukTerjual: 0,
+            totalRefund: 0,
+            totalReturnCount: 0,
             prevPendapatan: 0,
             prevProfit: 0,
             prevTransaksi: 0,
-            prevProdukTerjual: 0
+            prevProdukTerjual: 0,
+            prevRefund: 0,
+            prevReturnCount: 0
         });
+
+        console.log('========================================');
+        console.log('[AGGREGATE TOTALS]');
+        console.log('Total Refund (All Staff):', 'Rp', totals.totalRefund.toLocaleString());
+        console.log('Total Return Count:', totals.totalReturnCount);
+        console.log('Previous Refund:', 'Rp', totals.prevRefund.toLocaleString());
+        console.log('========================================');
 
         // Calculate trend percentages
         const calculateTrend = (current, previous) => {
@@ -231,6 +261,7 @@ const LaporanStaff = ({ formatRupiah, userName = "Admin" }) => {
         const trendPendapatan = calculateTrend(totals.totalPendapatan, totals.prevPendapatan);
         const trendTransaksi = calculateTrend(totals.totalTransaksi, totals.prevTransaksi);
         const trendProduk = calculateTrend(totals.totalProdukTerjual, totals.prevProdukTerjual);
+        const trendRefund = calculateTrend(totals.totalRefund, totals.prevRefund);
 
         const rataRataTransaksi = totals.totalTransaksi > 0 ? totals.totalPendapatan / totals.totalTransaksi : 0;
         const prevRataRataTransaksi = totals.prevTransaksi > 0 ? totals.prevPendapatan / totals.prevTransaksi : 0;
@@ -449,13 +480,14 @@ const LaporanStaff = ({ formatRupiah, userName = "Admin" }) => {
                 totalProfit: totals.totalProfit,
                 totalTransaksi: totals.totalTransaksi,
                 totalProdukTerjual: totals.totalProdukTerjual,
-                totalRefund: 0,
+                totalRefund: totals.totalRefund,  // Real refund data (based on harga_beli)
+                totalReturnCount: totals.totalReturnCount,  // Number of return transactions
                 rataRataTransaksi: rataRataTransaksi,
                 trendPendapatan: parseFloat(trendPendapatan),
                 trendProfit: parseFloat(trendProfit),
                 trendTransaksi: parseFloat(trendTransaksi),
                 trendProduk: parseFloat(trendProduk),
-                trendRefund: 0,
+                trendRefund: parseFloat(trendRefund),  // Trend for refund
                 trendRataRata: parseFloat(trendRataRata)
             },
             staffList: staffList,
@@ -732,14 +764,8 @@ const LaporanStaff = ({ formatRupiah, userName = "Admin" }) => {
         </div>
     );
 
-    // Komponen Card Staff dengan desain baru - FIXED SCROLL ISSUE
+    // Komponen Card Staff dengan desain baru - FIXED SCROLL ISSUE & MODIFIED AS REQUESTED
     const StaffCard = ({ staff }) => {
-        const handleExpandClick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleExpandStaff(staff.id);
-        };
-
         const handleDetailClick = (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -767,8 +793,8 @@ const LaporanStaff = ({ formatRupiah, userName = "Admin" }) => {
                     </div>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                {/* Stats Grid - MODIFIED: Removed Akurasi Input, changed to 3 columns */}
+                <div className="grid grid-cols-3 gap-4 mb-4">
                     <div className="text-center">
                         <p className="text-xs text-gray-500">Pendapatan</p>
                         <p className="text-lg font-semibold text-gray-800">{formatRupiah(staff.totalPendapatan)}</p>
@@ -781,61 +807,19 @@ const LaporanStaff = ({ formatRupiah, userName = "Admin" }) => {
                         <p className="text-xs text-gray-500">Produk Terjual</p>
                         <p className="text-lg font-semibold text-gray-800">{staff.produkTerjual}</p>
                     </div>
-                    <div className="text-center">
-                        <p className="text-xs text-gray-500">Akurasi Input</p>
-                        <p className="text-lg font-semibold text-gray-800">{staff.akurasiInput}%</p>
-                    </div>
                 </div>
 
-                {/* Time Info */}
-                <div className="flex items-center justify-center mb-4">
-                    <div className="flex items-center text-sm text-gray-600 space-x-4">
-                        <div className="flex items-center">
-                            <FontAwesomeIcon icon={faSignInAlt} className="text-green-600 mr-1" />
-                            <span>{staff.waktuLogin}</span>
-                        </div>
-                        <div className="flex items-center">
-                            <FontAwesomeIcon icon={faSignOutAlt} className="text-red-600 mr-1" />
-                            <span>{staff.waktuLogout}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+                {/* Time Info - REMOVED Sign In/Sign Out icons and times */}
+                
+                {/* Action Buttons - REMOVED Expand Dropdown */}
+                <div className="flex justify-end pt-4 border-t border-gray-200">
                     <button
                         onClick={handleDetailClick}
                         className="text-sm font-medium text-green-700 hover:text-green-900 hover:underline"
                     >
                         Lihat Detail
                     </button>
-                    <button
-                        onClick={handleExpandClick}
-                        className="text-gray-500 hover:text-gray-700 transition-colors"
-                    >
-                        {expandedStaff === staff.id ? (
-                            <FontAwesomeIcon icon={faChevronUp} className="text-sm" />
-                        ) : (
-                            <FontAwesomeIcon icon={faChevronDown} className="text-sm" />
-                        )}
-                    </button>
                 </div>
-
-                {/* Expanded Content */}
-                {expandedStaff === staff.id && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div className="text-center">
-                                <p className="text-gray-500">Jam Kerja</p>
-                                <p className="font-medium text-gray-800">{staff.jamKerja}</p>
-                            </div>
-                            <div className="text-center">
-                                <p className="text-gray-500">Rata-rata Transaksi/Jam</p>
-                                <p className="font-medium text-gray-800">{staff.rataRataTransaksiPerJam}</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         );
     };
@@ -1278,7 +1262,7 @@ const LaporanStaff = ({ formatRupiah, userName = "Admin" }) => {
                                 <StatCard
                                     title="Total Refund/Retur"
                                     value={data.ringkasanHarian.totalRefund}
-                                    trend={data.ringkasanHarian.trendRefund || 0}
+                                    // MODIFIED: Removed trend prop to hide percentage
                                     icon={faUndo}
                                     isCurrency={true}
                                     color="red"

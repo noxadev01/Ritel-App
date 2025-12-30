@@ -4,6 +4,9 @@ import './App.css';
 // Auth Provider
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
+// Sync Provider
+import { SyncProvider } from './contexts/SyncContext';
+
 // Toast Provider
 import { ToastProvider } from './components/common/ToastContainer';
 
@@ -284,11 +287,13 @@ const AppContent = () => {
     );
 };
 
-// Main App component with AuthProvider
+// Main App component with AuthProvider and SyncProvider
 const App = () => {
     return (
         <AuthProvider>
-            <AppContent />
+            <SyncProvider>
+                <AppContent />
+            </SyncProvider>
         </AuthProvider>
     );
 };

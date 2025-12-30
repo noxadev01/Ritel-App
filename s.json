@@ -1,0 +1,47 @@
+{
+  "name": "Ritel-App",
+  "frontend:build": "npm run build",
+  "frontend:install": "npm install",
+  "frontend:dev": "",
+  "frontend:dev:build": "",
+  "frontend:dev:install": "",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "wailsjsdir": "C:/Users/Hp/Documents/Project/Ritel-App/frontend",
+  "version": "2",
+  "projectdir": "C:\\Users\\Hp\\Documents\\Project\\Ritel-App",
+  "build:dir": "build",
+  "outputfilename": "Ritel-App.exe",
+  "OutputType": "",
+  "Platform": "",
+  "runNonNativeBuildHooks": false,
+  "postBuildHooks": null,
+  "preBuildHooks": null,
+  "Author": {
+    "name": "noxadev01",
+    "email": "noxadev01@gmail.com"
+  },
+  "Info": {
+    "companyName": "Ritel-App",
+    "productName": "Ritel-App",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright.........",
+    "comments": "Built using Wails (https://wails.io)",
+    "fileAssociations": null,
+    "protocols": null
+  },
+  "debounceMS": 100,
+  "devServer": "localhost:34115",
+  "appargs": "",
+  "nsisType": "multiple",
+  "obfuscated": false,
+  "garbleargs": "",
+  "frontend:dir": "frontend",
+  "bindings": {
+    "ts_generation": {
+      "prefix": "",
+      "suffix": "",
+      "outputType": ""
+    }
+  }
+}
